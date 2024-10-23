@@ -1,5 +1,6 @@
 {
   "server": "http://localhost:8080/",
+  "app_meta": "demo/meta.json",
   "files": {
     "file1": {
       "version": "v0.1.1",
