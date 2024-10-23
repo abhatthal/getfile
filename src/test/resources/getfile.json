@@ -1,17 +1,14 @@
 {
   "server": "http://localhost:8080/",
-  "app_meta": "demo/meta.json",
   "files": {
     "file1": {
       "version": "v0.1.1",
-      "server_path": "data/file1.txt",
-      "local_path": "src/test/resources/file1.txt",
+      "path": "src/test/resources/file1.txt",
       "update_type": "manual"
     },
     "file2": {
       "version": "v1.0.0",
-      "server_path": "data/file2.txt",
-      "local_path": "src/test/resources/file1.txt",
+      "path": "src/test/resources/file1.txt",
       "update_type": "automatic"
     }
   }

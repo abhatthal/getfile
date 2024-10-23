@@ -17,13 +17,22 @@ repositories {
 dependencies {
     // Use JUnit Jupiter for testing.
     testImplementation libs.junit.jupiter
-
+    // https://mvnrepository.com/artifact/com.github.tomakehurst/wiremock
+	testImplementation 'com.github.tomakehurst:wiremock:3.0.1'
+    
     testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
 
     api 'com.google.code.gson:gson:2.8.9'
 
     // This dependency is used by the application.
     implementation libs.guava
+    // https://mvnrepository.com/artifact/commons-io/commons-io
+	implementation 'commons-io:commons-io:2.17.0'
+	// https://mvnrepository.com/artifact/commons-codec/commons-codec
+	implementation 'commons-codec:commons-codec:1.17.1'
+	
+	
+    
 }
 
 // Apply a specific Java toolchain to ease working on different environments.
