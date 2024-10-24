@@ -43,7 +43,14 @@ public class GetFile {
 			System.err.println("Unable to get fileserver metadata. Not updating files.");
 			return;
 		}
-		// TODO: Finish file download iteration
+		
+	}
+	
+	/**
+	 * Update all local files using new server files.
+	 * @return 0 if success and 1 if any failure
+	 */
+	public int updateAll() {
 		// For each file in local_meta
 		//  * if file["version"] != latestVersion in server_meta_
 		//    * if file["uploadType"]==manual
@@ -53,7 +60,7 @@ public class GetFile {
 		
 		// https://stackoverflow.com/a/10593838
 //		Iterator<String> keys = local_meta_.keys();
-		
+		return 1;  // TODO
 	}
 	
 	/**
@@ -129,7 +136,9 @@ public class GetFile {
 				// Move hidden file to overwrite.
 				FileUtils.copyFile(file, new File(saveLocation));
 				file.delete();
-				System.out.printf("GetFile.downloadFile updated %s from %s\n", saveLocation, fileUrl);
+				System.out.printf(
+						"GetFile.downloadFile updated %s from %s\n",
+						saveLocation, fileUrl);
 				return 0;
 			}
 			if (file.exists()) {
@@ -144,11 +153,22 @@ public class GetFile {
 		}
 	}
 	
-	private String getExpectedMd5(String fileUrl)
-			throws URISyntaxException, MalformedURLException, IOException {
-		URI uri = new URI(fileUrl.concat(".md5"));
-		InputStream inputStream = uri.toURL().openStream();
-		return IOUtils.toString(inputStream, StandardCharsets.UTF_8);
+	/**
+	 * Gets the precomputed MD5 checksum for a file at the corresponding file.md5.
+	 * @param fileUrl	URL to file on server to find checksum for
+	 * @return			String of precomputed MD5 from the md5 file on server.
+	 */
+	private String getExpectedMd5(String fileUrl) {
+		try {
+			URI uri = new URI(fileUrl.concat(".md5"));
+			InputStream inputStream = uri.toURL().openStream();
+			return IOUtils.toString(inputStream, StandardCharsets.UTF_8);
+		} catch (URISyntaxException | IOException e) {
+			System.err.printf(
+					"GetFile.getExpectedMd5 Could not find precomputed Md5 checksum for %s\n",
+					fileUrl);
+			throw new RuntimeException(e);
+		}
 	}
 	
 	/**
