@@ -32,15 +32,16 @@ import java.io.InputStreamReader;
  * All tracked files must be versioned.
  */
 public class GetFile {
-	public GetFile(String jsonConfig) {
-		// Read the local configuration file to get metadata server and current file versions.
-		JsonObject local_meta = parseJson(jsonConfig);	
-		// Server we should connect to for new files
-		server_ = local_meta.get("server").toString().replaceAll("\"", "");
+	public GetFile(String server, String getfileJson) {
+		// Read the local getfile json to get current file versions.
+		local_meta_ = parseJson(getfileJson);	
 		// Get a fresh copy of the latest file versions
-		server_meta_ = (downloadFile(server_.concat("meta.json"), "meta.json", /*retries=*/3) == 0) ?
-			parseJson("meta.json") :
-			(JsonObject)null;
+		downloadFile(server.concat("meta.json"), "meta.json", /*retries=*/3);
+		server_meta_ = parseJson("meta.json");
+		if (server_meta_ == null) {
+			System.err.println("Unable to get fileserver metadata. Not updating files.");
+			return;
+		}
 		// TODO: Finish file download iteration
 		// For each file in local_meta
 		//  * if file["version"] != latestVersion in server_meta_
@@ -48,6 +49,7 @@ public class GetFile {
 		//      then promptDownload
 		//    * download directly from server_meta file path if automatic
 		//	  * throw error if other uploadType
+		
 	}
 	
 	/**
@@ -75,16 +77,25 @@ public class GetFile {
 	}
 	
 	/**
-	 * Finds the latest version of a file given the server cached metadata
+	 * Finds the latest version of a file given the server cached metadata.
 	 * @param file		Key in the meta.json file. Not necessarily filename.
-	 * @return 			version of the given file
+	 * @return 			version of the given file on server
 	 */
-	private String latestVersion(String file) {
+	public String latestVersion(String file) {
 		return ((JsonObject) server_meta_.get(file))
 			.get("version").toString().replaceAll("\"", "");
-		// TODO: Test this function!
 	}
-	
+
+	/**
+	 * Finds the current version of a file given the local getfile.
+	 * @param file		Key in the getfile.json file. Not necessarily filename.
+	 * @return 			version of the given file on server
+	 */
+	public String currentVersion(String file) {
+		return ((JsonObject) local_meta_.get(file))
+			.get("version").toString().replaceAll("\"", "");
+	}
+
 	/**
 	 * Downloads a file with MD5 validation
 	 * @param fileUrl				URL of file to download
@@ -112,7 +123,7 @@ public class GetFile {
 			System.err.printf("GetFile.downloadFile MD5 validation failed: %s\n", fileUrl);
 			return 1;
 		} catch (IOException | URISyntaxException e) {
-			System.err.printf("GetFile.downloadFile Unable to connect to server: %s\n", server_);
+			System.err.println("GetFile.downloadFile Unable to connect to server");
 			throw new RuntimeException(e);
 			
 		}
@@ -154,22 +165,7 @@ public class GetFile {
 		return true;  // TODO
 	}
 	
-	/**
-	 * Gets URL to the server
-	 * @return private server variable
-	 */
-	public String getServer() {
-		return server_;
-	}
-	private String server_;
-	
-	/**
-	 * Getter for server file metadata
-	 * @return JSON of all files on server and their latest versions
-	 */
-	public JsonObject getMeta() {
-		return server_meta_;
-	}
 	private JsonObject server_meta_;
+	private JsonObject local_meta_;
 	
 }

@@ -1,6 +1,4 @@
 {
-  "server": "http://localhost:8088/",
-  "files": {
     "file1": {
       "version": "v0.1.1",
       "path": "src/test/resources/file1.txt",
@@ -8,9 +6,8 @@
     },
     "file2": {
       "version": "v1.0.0",
-      "path": "src/test/resources/file1.txt",
+      "path": "src/test/resources/file2.txt",
       "update_type": "automatic"
     }
-  }
 }
 

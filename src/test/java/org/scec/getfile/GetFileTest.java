@@ -48,7 +48,8 @@ public class GetFileTest {
                         .withBodyFile("meta.json.md5")));
 
 		// Set up GetFile instance after server initialization
-		getfile = new GetFile("src/test/resources/getfile.json");
+		getfile = new GetFile(/*server=*/"http://localhost:8088/",
+				/*getfileJson=*/"src/test/resources/getfile.json");
 
 	}
 	
@@ -60,25 +61,20 @@ public class GetFileTest {
 	}
 
 	/**
-	 * Verify we are connecting to the correct server, parsed from getfile.json.
+	 * Get the latest version of a file on the server.
 	 */
 	@Test
-	public void getServer() {
-		assertEquals(getfile.getServer(),
-				"http://localhost:8088/");
+	public void latestVersion() {
+		assertEquals(getfile.latestVersion("file1"), "v0.1.1");
+		assertEquals(getfile.latestVersion("file2"), "v1.3.1");
 	}
-	
+
 	/**
-	 * Correctly reads metadata from file server.
+	 * Get the latest version of a file on the server.
 	 */
 	@Test
-	public void getMeta() {
-		JsonObject meta = getfile.getMeta();
-		assertNotNull(meta);
-		assertEquals(meta.get("file1").toString(),
-				"{\"version\":\"v0.1.1\",\"path\":\"data/file1.txt\"}");
-		assertEquals(((JsonObject) meta.get("file1")).get("version").toString(),
-				"\"v0.1.1\"");
+	public void currentVersion() {
+		assertEquals(getfile.currentVersion("file1"), "v0.1.1");
+		assertEquals(getfile.currentVersion("file2"), "v1.0.0");
 	}
-	
 }
