@@ -32,16 +32,22 @@ import java.io.InputStreamReader;
  * All tracked files must be versioned.
  */
 public class GetFile {
-	public GetFile(String jsonFile) {
-		JsonObject json = parseJson(jsonFile);	
-		server_ = json.get("server").toString().replaceAll("\"", "");
-		// TODO: Check if server is up. If not, log failure to connect and return
-
-		// For each file
-		//  * if file["version"] != latestVersion
-		//    * if not file["uploadType"]==automatic
+	public GetFile(String jsonConfig) {
+		// Read the local configuration file to get metadata server and current file versions.
+		JsonObject local_meta = parseJson(jsonConfig);	
+		// Server we should connect to for new files
+		server_ = local_meta.get("server").toString().replaceAll("\"", "");
+		// Get a fresh copy of the latest file versions
+		server_meta_ = (downloadFile(server_.concat("meta.json"), "meta.json", /*retries=*/3) == 0) ?
+			parseJson("meta.json") :
+			(JsonObject)null;
+		// TODO: Finish file download iteration
+		// For each file in local_meta
+		//  * if file["version"] != latestVersion in server_meta_
+		//    * if file["uploadType"]==manual
 		//      then promptDownload
-		//	  * downloadFile using validateFile with n tries
+		//    * download directly from server_meta file path if automatic
+		//	  * throw error if other uploadType
 	}
 	
 	/**
@@ -74,36 +80,42 @@ public class GetFile {
 	 * @return 			version of the given file
 	 */
 	private String latestVersion(String file) {
-		return ""; // TODO
+		return ((JsonObject) server_meta_.get(file))
+			.get("version").toString().replaceAll("\"", "");
+		// TODO: Test this function!
 	}
 	
 	/**
 	 * Downloads a file with MD5 validation
 	 * @param fileUrl				URL of file to download
 	 * @param saveLocation			Where the downloaded file should be stored
-	 * @throws IOException
-	 * @throws URISyntaxException
 	 * @return 0 if success and 1 if any failure
 	 */
-	private int downloadFile(String fileUrl, String saveLocation) throws IOException, URISyntaxException {
-		// Download the file from the given URL
-        File file = new File(".".concat(saveLocation));
-        FileUtils.copyURLToFile(new URI(fileUrl).toURL(), file);
-		 // Calculate the MD5 checksum of the downloaded file
-        String calculatedMd5 =
-        		DigestUtils.md5Hex(Files.newInputStream(file.toPath()));
-		if (calculatedMd5.equalsIgnoreCase(getExpectedMd5(fileUrl))) {
-			// Move hidden file to overwrite.
-			FileUtils.copyFile(file, new File(saveLocation));
-			file.delete();
-			System.out.printf("GetFile.downloadFile updated %s from %s", saveLocation, fileUrl);
-			return 0;
+	private int downloadFile(String fileUrl, String saveLocation) {
+		try {
+			// Download the file from the given URL
+			File file = new File(".".concat(saveLocation));
+			FileUtils.copyURLToFile(new URI(fileUrl).toURL(), file);
+			 // Calculate the MD5 checksum of the downloaded file
+			String calculatedMd5 =
+					DigestUtils.md5Hex(Files.newInputStream(file.toPath()));
+			if (calculatedMd5.equalsIgnoreCase(getExpectedMd5(fileUrl))) {
+				// Move hidden file to overwrite.
+				FileUtils.copyFile(file, new File(saveLocation));
+				file.delete();
+				System.out.printf("GetFile.downloadFile updated %s from %s\n", saveLocation, fileUrl);
+				return 0;
+			}
+			if (file.exists()) {
+				file.delete();
+			}
+			System.err.printf("GetFile.downloadFile MD5 validation failed: %s\n", fileUrl);
+			return 1;
+		} catch (IOException | URISyntaxException e) {
+			System.err.printf("GetFile.downloadFile Unable to connect to server: %s\n", server_);
+			throw new RuntimeException(e);
+			
 		}
-		if (file.exists()) {
-			file.delete();
-		}
-		System.err.printf("GetFile.downloadFile MD5 validation failed: %s", fileUrl);
-		return 1;
 	}
 	
 	private String getExpectedMd5(String fileUrl)
@@ -114,15 +126,32 @@ public class GetFile {
 	}
 	
 	/**
-	 * Prompt user with JOptionPane if they want to update to latest version of file
+	 * Retry download until it succeeds or `retries` attempts exceeded.
+	 * If retries is not specified, defaults to 1 attempt.
+	 * @param fileUrl				URL of file to download
+	 * @param saveLocation			Where the downloaded file should be stored
+	 * @param retries				Count of retry attempts
+	 * @return						0 if success and 1 if reached n executions
 	 */
-	private void promptDownload() {
+	private int downloadFile(String fileUrl, String saveLocation, int retries) {
+		int status = 1;
+		for (int i = 0; i < retries && status != 0; i++) {
+			status = downloadFile(fileUrl, saveLocation);
+		}
+		return status;
+	}
+	
+	/**
+	 * Prompt user with JOptionPane if they want to update to latest version of file
+	 * @return true if we should download the latest version of this file
+	 */
+	private boolean promptDownload() {
 		// In the event of a manual update type, prompt the user prior to download
 		// "Would you like to update `file` version to latestVersion now?"
 		// "Update Now" ,"Later", "Skip this Version"
-		// TODO: Implement JOptionPane solution.
 		// If we want to be able to skip versions,
 		// we need to keep a JsonArray of skipped versions inside getfile.json
+		return true;  // TODO
 	}
 	
 	/**
@@ -130,27 +159,17 @@ public class GetFile {
 	 * @return private server variable
 	 */
 	public String getServer() {
-		// Server to get latest files and metadata
 		return server_;
 	}
 	private String server_;
 	
 	/**
-	 * Reads the meta.json file outlining versioned files to check for updates
+	 * Getter for server file metadata
 	 * @return JSON of all files on server and their latest versions
-	 * @throws IOException
-	 * @throws URISyntaxException
 	 */
-	public JsonObject getMeta() throws IOException, URISyntaxException {
-		// Try up to `retries` times to download
-		int status = 1;
-		final int retries = 3;
-		for (int i = 0; i < retries && status != 0; i++) {
-			status = downloadFile(server_.concat("meta.json"), "meta.json");
-		}
-		if (status != 0) {
-			return (JsonObject)null;
-		}
-		return parseJson("meta.json");
+	public JsonObject getMeta() {
+		return server_meta_;
 	}
+	private JsonObject server_meta_;
+	
 }

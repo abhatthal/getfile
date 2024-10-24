@@ -27,9 +27,6 @@ public class GetFileTest {
 
 	@BeforeEach
 	public void setUp() {
-		// Set up GetFile instance
-		getfile = new GetFile("src/test/resources/getfile.json");
-
 		// Initialize WireMock server on port 8088
 		// This server is our host for updated files and file metadata
         wireMockServer =
@@ -49,23 +46,33 @@ public class GetFileTest {
                 .willReturn(aResponse()
                 		.withStatus(200)
                         .withBodyFile("meta.json.md5")));
+
+		// Set up GetFile instance after server initialization
+		getfile = new GetFile("src/test/resources/getfile.json");
+
 	}
 	
 	@AfterEach
     public void tearDown() {
 		if (wireMockServer != null && wireMockServer.isRunning()) {
 	        wireMockServer.stop();
-	    }    }
+	    }
+	}
 
-	// https://docs.gradle.org/current/samples/sample_building_java_libraries.html
+	/**
+	 * Verify we are connecting to the correct server, parsed from getfile.json.
+	 */
 	@Test
 	public void getServer() {
 		assertEquals(getfile.getServer(),
 				"http://localhost:8088/");
 	}
 	
+	/**
+	 * Correctly reads metadata from file server.
+	 */
 	@Test
-	public void getMeta() throws IOException, URISyntaxException {
+	public void getMeta() {
 		JsonObject meta = getfile.getMeta();
 		assertNotNull(meta);
 		assertEquals(meta.get("file1").toString(),
