@@ -6,12 +6,6 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import java.io.IOException;
 import java.net.URISyntaxException;
 
-//import java.io.IOException;
-//import java.net.HttpURLConnection;
-//import java.net.MalformedURLException;
-//import java.net.URI;
-//import java.net.URISyntaxException;
-
 import static com.github.tomakehurst.wiremock.client.WireMock.aResponse;
 import static com.github.tomakehurst.wiremock.client.WireMock.get;
 
@@ -36,7 +30,7 @@ public class GetFileTest {
 		// Set up GetFile instance
 		getfile = new GetFile("src/test/resources/getfile.json");
 
-		// Initialize WireMock server on port 8080
+		// Initialize WireMock server on port 8088
 		// This server is our host for updated files and file metadata
         wireMockServer =
         		new WireMockServer(WireMockConfiguration.wireMockConfig()

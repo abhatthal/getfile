@@ -111,7 +111,6 @@ public class GetFile {
 		URI uri = new URI(fileUrl.concat(".md5"));
 		InputStream inputStream = uri.toURL().openStream();
 		return IOUtils.toString(inputStream, StandardCharsets.UTF_8);
-		
 	}
 	
 	/**
@@ -119,7 +118,11 @@ public class GetFile {
 	 */
 	private void promptDownload() {
 		// In the event of a manual update type, prompt the user prior to download
-		// TODO
+		// "Would you like to update `file` version to latestVersion now?"
+		// "Update Now" ,"Later", "Skip this Version"
+		// TODO: Implement JOptionPane solution.
+		// If we want to be able to skip versions,
+		// we need to keep a JsonArray of skipped versions inside getfile.json
 	}
 	
 	/**
