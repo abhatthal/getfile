@@ -21,6 +21,7 @@ import org.junit.jupiter.api.Test;
 
 import com.github.tomakehurst.wiremock.WireMockServer;
 import com.github.tomakehurst.wiremock.core.WireMockConfiguration;
+import com.google.gson.JsonObject;
 
 /**
  * Test GetFile for correct JSON parsing and server response
@@ -71,7 +72,12 @@ public class GetFileTest {
 	
 	@Test
 	public void getMeta() throws IOException, URISyntaxException {
-		assertNotNull(getfile.getMeta());
+		JsonObject meta = getfile.getMeta();
+		assertNotNull(meta);
+		assertEquals(meta.get("file1").toString(),
+				"{\"version\":\"v0.1.1\",\"path\":\"data/file1.txt\"}");
+		assertEquals(((JsonObject) meta.get("file1")).get("version").toString(),
+				"\"v0.1.1\"");
 	}
 	
 }

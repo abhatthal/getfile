@@ -99,7 +99,10 @@ public class GetFile {
 			System.out.printf("GetFile.downloadFile updated %s from %s", saveLocation, fileUrl);
 			return 0;
 		}
-		System.err.printf("GetFile.downloadFile Failed to download %s", fileUrl);
+		if (file.exists()) {
+			file.delete();
+		}
+		System.err.printf("GetFile.downloadFile MD5 validation failed: %s", fileUrl);
 		return 1;
 	}
 	
