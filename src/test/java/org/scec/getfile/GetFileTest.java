@@ -22,6 +22,7 @@ public class GetFileTest {
 
 	@BeforeEach
 	public void setUp() {
+		System.out.println("GetFileTest.setUp()");
 		// Initialize WireMock server on port 8088
 		// This server is our host for updated files and file metadata
         wireMockServer =
@@ -50,9 +51,12 @@ public class GetFileTest {
 	
 	@AfterEach
     public void tearDown() {
+		System.out.println("GetFileTest.tearDown()");
 		if (wireMockServer != null && wireMockServer.isRunning()) {
 	        wireMockServer.stop();
 	    }
+		// TODO: Reset files to initial outdated condition after updating
+		// Manually set the values of each file with hardcoded strings.
 	}
 
 	/**
@@ -71,5 +75,17 @@ public class GetFileTest {
 	public void currentVersion() {
 		assertEquals(getfile.getClientMeta("file1", "version"), "v0.1.1");
 		assertEquals(getfile.getClientMeta("file2", "version"), "v1.0.0");
+	}
+	
+	/**
+	 * Ensure outdated files are successfully updated.
+	 */
+	@Test
+	public void updateAll() {
+		getfile.updateAll();
+	/* TODO
+	 * Validate new value of files match updated versions
+	 * Verify that currentVersion metadata is updated
+	 */
 	}
 }

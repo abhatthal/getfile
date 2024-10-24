@@ -1,7 +1,7 @@
 package org.scec.getfile;
 
 //import com.google.gson.JsonArray;
-//import com.google.gson.JsonElement;
+import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 //import com.google.gson.stream.JsonReader;
@@ -19,7 +19,6 @@ import java.net.URI;
 import java.net.URISyntaxException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
-import java.util.Iterator;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
@@ -41,13 +40,9 @@ public class GetFile {
 		// Read the local getfile json to get current file versions.
 		local_meta_ = parseJson(getfileJson);	
 		// Get a fresh copy of the latest file versions
+		// If fail to download new meta after 3 attempts, use existing meta.
 		downloadFile(server.concat("meta.json"), "meta.json", /*retries=*/3);
 		server_meta_ = parseJson("meta.json");
-		if (server_meta_ == null) {
-			System.err.println("Unable to get fileserver metadata. Not updating files.");
-			return;
-		}
-		
 	}
 	
 	/**
@@ -55,25 +50,28 @@ public class GetFile {
 	 * @return 0 if success and 1 if any failure
 	 */
 	public int updateAll() {
-		
-		/**
-		 * Iterate over all local files metadata
-		 * For each file
-		 *   If file version mismatch server file version
-		 *     download latest file if automatic and not in skip location
-		 *     else prompt and then download latest file
-		 */
-		return 1;  // TODO
-
-		/* TODO: Test this function
-		 * Tests should validate initial value of resources/file{1,2}.txt
-		 * then run updateAll()
-		 * Validate new value of files match updated versions
-		 * Verify that currentVersion metadata is updated
-		 * Reset client metadata and local files to old version with rollBack()
-		 *   * To do this, we shouldn't overwrite but instead save old version
-		 *     a to .file hidden file
-		 */
+		if (server_meta_ == null) {
+			System.err.println("Unable to get fileserver metadata. Not updating files.");
+			return 1;
+		}
+		// Iterate over the key-value pairs in the JsonObject
+        for (java.util.Map.Entry<String, JsonElement> entry : local_meta_.entrySet()) {
+            String file = entry.getKey();
+//            JsonElement value = entry.getValue();
+            String clientVersion = getClientMeta(file, "version");
+            String serverVersion = getServerMeta(file, "version");
+            if (serverVersion == "") {
+            	System.err.println(
+            			"GetFile.updateAll File metadata found in client missing on server");
+            	return 1;
+            }
+            if (!clientVersion.equals(serverVersion)) {
+            	System.out.printf("Update %s %s => %s\n",
+            			file, clientVersion, serverVersion);
+            	// TODO: Update file if automatic, else prompt
+            }
+        }
+		return 0;
 	}
 	
 	/**
@@ -82,6 +80,8 @@ public class GetFile {
 	 */
 	public int rollback() {
 		return 1;  // TODO“
+		// Prior to implementing rollback, we need to update downloadFile to
+		// copy rather than overwrite existing file.
 		// TODO: Test this function
 	}
 	
@@ -135,11 +135,18 @@ public class GetFile {
 	 * @param file		Key in the meta JSON file. Not necessarily filename.
 	 * @param key		Filedata to lookup, i.e. path, version
 	 * @param meta		Which metadata to consider
-	 * @return
+	 * @return			Value corresponding to key in JSON or empty string if not found.
 	 */
 	private String getMetaImpl(String file, String key, JsonObject meta) {
-		return ((JsonObject) meta.get(file))
-			.get(key).toString().replaceAll("\"", "");
+		try {
+			return ((JsonObject) meta.get(file))
+				.get(key).toString().replaceAll("\"", "");
+		} catch (NullPointerException e) {
+			System.err.println(e);
+			System.err.printf(
+					"GetFile.getMetaImpl %s.%s not found in meta\n", file, key);
+			return "";
+		}
 	}
 	
 	/**
@@ -161,8 +168,7 @@ public class GetFile {
 				FileUtils.copyFile(file, new File(saveLocation));
 				file.delete();
 				System.out.printf(
-						"GetFile.downloadFile updated %s from %s\n",
-						saveLocation, fileUrl);
+						"GetFile.downloadFile downloaded %s\n",	fileUrl);
 				return 0;
 			}
 			if (file.exists()) {
