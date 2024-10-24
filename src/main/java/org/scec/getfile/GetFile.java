@@ -13,10 +13,8 @@ import org.apache.commons.io.IOUtils;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
-//import java.io.FileReader;
 import java.io.Reader;
 import java.io.UnsupportedEncodingException;
-import java.net.MalformedURLException;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.nio.charset.StandardCharsets;
@@ -33,6 +31,12 @@ import java.io.InputStreamReader;
  * All tracked files must be versioned.
  */
 public class GetFile {
+	/**
+	 * Constructor establishes connection with server and parses local and
+	 * server file metadata into memory.
+	 * @param server		String of URL to connect to
+	 * @param getfileJson	Path to local file metadata
+	 */
 	public GetFile(String server, String getfileJson) {
 		// Read the local getfile json to get current file versions.
 		local_meta_ = parseJson(getfileJson);	
@@ -51,16 +55,34 @@ public class GetFile {
 	 * @return 0 if success and 1 if any failure
 	 */
 	public int updateAll() {
-		// For each file in local_meta
-		//  * if file["version"] != latestVersion in server_meta_
-		//    * if file["uploadType"]==manual
-		//      then promptDownload
-		//    * download directly from server_meta file path if automatic
-		//	  * throw error if other uploadType
 		
-		// https://stackoverflow.com/a/10593838
-//		Iterator<String> keys = local_meta_.keys();
+		/**
+		 * Iterate over all local files metadata
+		 * For each file
+		 *   If file version mismatch server file version
+		 *     download latest file if automatic and not in skip location
+		 *     else prompt and then download latest file
+		 */
 		return 1;  // TODO
+
+		/* TODO: Test this function
+		 * Tests should validate initial value of resources/file{1,2}.txt
+		 * then run updateAll()
+		 * Validate new value of files match updated versions
+		 * Verify that currentVersion metadata is updated
+		 * Reset client metadata and local files to old version with rollBack()
+		 *   * To do this, we shouldn't overwrite but instead save old version
+		 *     a to .file hidden file
+		 */
+	}
+	
+	/**
+	 * Rollback update to last version.
+	 * @return 0 if success and 1 if unable to rollback.
+	 */
+	public int rollback() {
+		return 1;  // TODO“
+		// TODO: Test this function
 	}
 	
 	/**
@@ -86,6 +108,7 @@ public class GetFile {
 		}
 		return json;
 	}
+
 	
 	/**
 	 * Helper method to read file metadata from server
@@ -106,6 +129,7 @@ public class GetFile {
 	public String getClientMeta(String file, String key) {
 		return getMetaImpl(file, key, local_meta_);
 	}
+
 	/**
 	 * Shared logic for getServerFileVal and getClientFileVal
 	 * @param file		Key in the meta JSON file. Not necessarily filename.
@@ -152,6 +176,7 @@ public class GetFile {
 			
 		}
 	}
+
 	
 	/**
 	 * Gets the precomputed MD5 checksum for a file at the corresponding file.md5.
@@ -170,6 +195,7 @@ public class GetFile {
 			throw new RuntimeException(e);
 		}
 	}
+
 	
 	/**
 	 * Retry download until it succeeds or `retries` attempts exceeded.
@@ -186,6 +212,7 @@ public class GetFile {
 		}
 		return status;
 	}
+
 	
 	/**
 	 * Prompt user with JOptionPane if they want to update to latest version of file
