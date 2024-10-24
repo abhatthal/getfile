@@ -21,6 +21,7 @@ import java.net.URI;
 import java.net.URISyntaxException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
+import java.util.Iterator;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
@@ -50,6 +51,9 @@ public class GetFile {
 		//    * download directly from server_meta file path if automatic
 		//	  * throw error if other uploadType
 		
+		// https://stackoverflow.com/a/10593838
+//		Iterator<String> keys = local_meta_.keys();
+		
 	}
 	
 	/**
@@ -77,25 +81,36 @@ public class GetFile {
 	}
 	
 	/**
-	 * Finds the latest version of a file given the server cached metadata.
+	 * Helper method to read file metadata from server
 	 * @param file		Key in the meta.json file. Not necessarily filename.
-	 * @return 			version of the given file on server
+	 * @param key		Filedata to lookup, i.e. path, version
+	 * @return			Value corresponding to key in JSON
 	 */
-	public String latestVersion(String file) {
-		return ((JsonObject) server_meta_.get(file))
-			.get("version").toString().replaceAll("\"", "");
+	public String getServerMeta(String file, String key) {
+		return getMetaImpl(file, key, server_meta_);
 	}
-
+	
 	/**
-	 * Finds the current version of a file given the local getfile.
+	 * Helper method to read file metadata from client
 	 * @param file		Key in the getfile.json file. Not necessarily filename.
-	 * @return 			version of the given file on server
+	 * @param key		Filedata to lookup, i.e. path, version
+	 * @return			Value corresponding to key in JSON
 	 */
-	public String currentVersion(String file) {
-		return ((JsonObject) local_meta_.get(file))
-			.get("version").toString().replaceAll("\"", "");
+	public String getClientMeta(String file, String key) {
+		return getMetaImpl(file, key, local_meta_);
 	}
-
+	/**
+	 * Shared logic for getServerFileVal and getClientFileVal
+	 * @param file		Key in the meta JSON file. Not necessarily filename.
+	 * @param key		Filedata to lookup, i.e. path, version
+	 * @param meta		Which metadata to consider
+	 * @return
+	 */
+	private String getMetaImpl(String file, String key, JsonObject meta) {
+		return ((JsonObject) meta.get(file))
+			.get(key).toString().replaceAll("\"", "");
+	}
+	
 	/**
 	 * Downloads a file with MD5 validation
 	 * @param fileUrl				URL of file to download

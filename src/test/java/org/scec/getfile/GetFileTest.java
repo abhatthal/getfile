@@ -65,8 +65,8 @@ public class GetFileTest {
 	 */
 	@Test
 	public void latestVersion() {
-		assertEquals(getfile.latestVersion("file1"), "v0.1.1");
-		assertEquals(getfile.latestVersion("file2"), "v1.3.1");
+		assertEquals(getfile.getServerMeta("file1", "version"), "v0.1.1");
+		assertEquals(getfile.getServerMeta("file2", "version"), "v1.3.1");
 	}
 
 	/**
@@ -74,7 +74,7 @@ public class GetFileTest {
 	 */
 	@Test
 	public void currentVersion() {
-		assertEquals(getfile.currentVersion("file1"), "v0.1.1");
-		assertEquals(getfile.currentVersion("file2"), "v1.0.0");
+		assertEquals(getfile.getClientMeta("file1", "version"), "v0.1.1");
+		assertEquals(getfile.getClientMeta("file2", "version"), "v1.0.0");
 	}
 }
