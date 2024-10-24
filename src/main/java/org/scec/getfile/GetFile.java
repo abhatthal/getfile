@@ -1,11 +1,10 @@
 package org.scec.getfile;
 
-//import com.google.gson.JsonArray;
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
-//import com.google.gson.stream.JsonReader;
-//import com.google.gson.stream.JsonToken;
 import org.apache.commons.codec.digest.DigestUtils;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.IOUtils;
@@ -14,6 +13,7 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.Reader;
+import java.io.FileWriter;
 import java.io.UnsupportedEncodingException;
 import java.net.URI;
 import java.net.URISyntaxException;
@@ -36,13 +36,22 @@ public class GetFile {
 	 * @param server		String of URL to connect to
 	 * @param getfileJson	Path to local file metadata
 	 */
-	public GetFile(String server, String getfileJson) {
+	public GetFile(String server, String local_meta_path) {
 		// Read the local getfile json to get current file versions.
-		local_meta_ = parseJson(getfileJson);	
+		local_meta_ = parseJson(local_meta_path);	
+		local_meta_path_ = local_meta_path;
 		// Get a fresh copy of the latest file versions
-		// If fail to download new meta after 3 attempts, use existing meta.
-		downloadFile(server.concat("meta.json"), "meta.json", /*retries=*/3);
-		server_meta_ = parseJson("meta.json");
+		final String server_meta_name = "meta.json";
+		downloadFile(server.concat(server_meta_name),
+				server_meta_name, /*retries=*/3);
+		server_meta_ = parseJson(server_meta_name);
+		// Delete cached copy of server meta as we always want fresh data.
+		File server_meta_file = new File(server_meta_name);
+		if (server_meta_file.exists()) {
+			server_meta_file.deleteOnExit();
+		}
+		
+		server_ = server;
 	}
 	
 	/**
@@ -54,10 +63,9 @@ public class GetFile {
 			System.err.println("Unable to get fileserver metadata. Not updating files.");
 			return 1;
 		}
-		// Iterate over the key-value pairs in the JsonObject
+		// Iterate over the local files to potentially update
         for (java.util.Map.Entry<String, JsonElement> entry : local_meta_.entrySet()) {
             String file = entry.getKey();
-//            JsonElement value = entry.getValue();
             String clientVersion = getClientMeta(file, "version");
             String serverVersion = getServerMeta(file, "version");
             if (serverVersion == "") {
@@ -68,14 +76,29 @@ public class GetFile {
             if (!clientVersion.equals(serverVersion)) {
             	System.out.printf("Update %s %s => %s\n",
             			file, clientVersion, serverVersion);
-            	// TODO: Update file if automatic, else prompt
+            	String updateType = getClientMeta(file, "update_type");
+            	if ((updateType.equals("manual") && promptDownload()) ||
+            			updateType.equals("automatic")) {
+            		// Download and validate the new file from the server
+            		downloadFile(server_.concat(getServerMeta(file, "path")),
+            				getClientMeta(file, "path"), /*retries=*/3);
+            		// Update the client meta version accordingly
+            		setClientMeta(file, "version", serverVersion);
+            	} else {
+            		System.err.printf(
+            				"GetFile.updateAll Invalid update_type \"%s\". " +
+            				"Skip update for file \"%s\"\n",
+            				updateType, file);
+            		return 1;
+            	}
             }
         }
 		return 0;
 	}
 	
 	/**
-	 * Rollback update to last version.
+	 * Rollback update to last stored version.
+	 * Only rollback the data, not the meta.
 	 * @return 0 if success and 1 if unable to rollback.
 	 */
 	public int rollback() {
@@ -129,6 +152,30 @@ public class GetFile {
 	public String getClientMeta(String file, String key) {
 		return getMetaImpl(file, key, local_meta_);
 	}
+	
+	/**
+	 * Set file[key] = value in client metadata.
+	 * Used to update client file version after successful update.
+	 * @param file
+	 * @param key
+	 * @param value
+	 */
+	private void setClientMeta(String file, String key, String value) {
+		try {
+			// Update the file value in memory
+			((JsonObject) local_meta_.get(file)).addProperty(key, value);
+			// Write the new JSON to disk
+			Gson gson = new GsonBuilder().setPrettyPrinting().create();
+            FileWriter writer = new FileWriter(local_meta_path_);
+			gson.toJson(local_meta_, writer);
+			writer.flush();
+			writer.close();
+		} catch (NullPointerException | IOException e) {
+			System.err.println(e);
+			System.err.printf("GetFile.setClientMeta Failed to set %s[%s]\n",
+					file, key);
+		}
+	}
 
 	/**
 	 * Shared logic for getServerFileVal and getClientFileVal
@@ -149,6 +196,8 @@ public class GetFile {
 		}
 	}
 	
+	// TODO: Move download functions into DownloadUtil class
+	
 	/**
 	 * Downloads a file with MD5 validation
 	 * @param fileUrl				URL of file to download
@@ -164,7 +213,8 @@ public class GetFile {
 			String calculatedMd5 =
 					DigestUtils.md5Hex(Files.newInputStream(file.toPath()));
 			if (calculatedMd5.equalsIgnoreCase(getExpectedMd5(fileUrl))) {
-				// Move hidden file to overwrite.
+				// TODO: Swap hidden file such that .file represents old version
+				// Currently we're tossing the old version by overwriting
 				FileUtils.copyFile(file, new File(saveLocation));
 				file.delete();
 				System.out.printf(
@@ -228,11 +278,14 @@ public class GetFile {
 		// In the event of a manual update type, prompt the user prior to download
 		// "Would you like to update `file` version to latestVersion now?"
 		// "Update Now" ,"Later", "Skip this Version"
+		// Returns false for Later or Skip options.
 		// If we want to be able to skip versions,
-		// we need to keep a JsonArray of skipped versions inside getfile.json
+		// we need to keep a JsonObj of skipped versions per file inside getfile.json
 		return true;  // TODO
 	}
 	
+	private final String server_;
+	private final String local_meta_path_;
 	private JsonObject server_meta_;
 	private JsonObject local_meta_;
 	
