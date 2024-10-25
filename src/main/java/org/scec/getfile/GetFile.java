@@ -23,6 +23,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 
+// TODO: Move download functions into DownloadUtil class
 
 /**
  * A GetFile instance contains all the logic required
@@ -50,7 +51,6 @@ public class GetFile {
 		if (server_meta_file.exists()) {
 			server_meta_file.deleteOnExit();
 		}
-		
 		server_ = server;
 	}
 	
@@ -59,10 +59,12 @@ public class GetFile {
 	 * @return 0 if success and 1 if any failure
 	 */
 	public int updateAll() {
-		if (server_meta_ == null) {
-			System.err.println("Unable to get fileserver metadata. Not updating files.");
+		if (local_meta_ == null || server_meta_ == null) {
+			System.err.println("Unable to get metadata. Not updating files.");
 			return 1;
 		}
+		// Backup local file metadata prior to updating.
+		backupFile(local_meta_path_);
 		// Iterate over the local files to potentially update
         for (java.util.Map.Entry<String, JsonElement> entry : local_meta_.entrySet()) {
             String file = entry.getKey();
@@ -73,6 +75,11 @@ public class GetFile {
             			"GetFile.updateAll File metadata found in client missing on server");
             	return 1;
             }
+			// We must backup the file regardless of version to ensure matches
+            // local meta backup. :. Invoking updateAll twice will purge backup.
+			String local_file_path = getClientMeta(file, "path");
+			backupFile(local_file_path);
+			// Only download files where versions don't match.
             if (!clientVersion.equals(serverVersion)) {
             	System.out.printf("Update %s %s => %s\n",
             			file, clientVersion, serverVersion);
@@ -81,7 +88,7 @@ public class GetFile {
             			updateType.equals("automatic")) {
             		// Download and validate the new file from the server
             		downloadFile(server_.concat(getServerMeta(file, "path")),
-            				getClientMeta(file, "path"), /*retries=*/3);
+            				local_file_path, /*retries=*/3);
             		// Update the client meta version accordingly
             		setClientMeta(file, "version", serverVersion);
             	} else {
@@ -97,15 +104,67 @@ public class GetFile {
 	}
 	
 	/**
+	 * Backs up file if it exists
+	 */
+	private void backupFile(String filePath) {
+		File file = new File(filePath);
+		if (file.exists()) {
+			try {
+				FileUtils.copyFile(file, new File(filePath.concat(".bak")));
+			} catch (IOException e) {
+				System.err.printf(
+						"GetFile.backupFile Failed to backup %s\n", filePath);
+				e.printStackTrace();
+			}
+		}
+	}
+	
+	/**
 	 * Rollback update to last stored version.
-	 * Only rollback the data, not the meta.
 	 * @return 0 if success and 1 if unable to rollback.
 	 */
 	public int rollback() {
-		return 1;  // TODO“
-		// Prior to implementing rollback, we need to update downloadFile to
-		// copy rather than overwrite existing file.
-		// TODO: Test this function
+		if (local_meta_ == null) {
+			System.err.println("Unable to get metadata. Not rolling back.");
+			return 1;
+		}
+		// Iterate over the local files to potentially rollback.
+        for (java.util.Map.Entry<String, JsonElement> entry : local_meta_.entrySet()) {
+				String file = entry.getKey();
+				String filePath = getClientMeta(file, "path");
+        	try {
+				File savLoc = new File(filePath);
+				File bakLoc = new File(filePath.concat(".bak"));
+				if (savLoc.exists() && bakLoc.exists()) {
+						FileUtils.copyFile(bakLoc, savLoc);
+						bakLoc.delete();
+						System.out.printf(
+								"GetFile.rollback rolled back %s\n", file);
+				}
+			} catch (IOException e) {
+				System.err.printf(
+						"GetFile.rollback Failed to rollback %s\n", filePath);
+				e.printStackTrace();
+			}
+        }
+        // Rollback the local meta itself
+        File local_meta_file = new File(local_meta_path_);
+        File local_meta_bak = new File(local_meta_path_.concat(".bak"));
+        if (local_meta_file.exists() && local_meta_bak.exists()) {
+        	try {
+				FileUtils.copyFile(local_meta_bak, local_meta_file);
+				local_meta_bak.delete();
+				System.out.println("GetFile.rollback rolled back local meta");
+        	} catch (IOException e) {
+				System.err.println("GetFile.rollback Failed to read local meta files");
+				e.printStackTrace();
+        	}
+        } else {
+				System.err.println("GetFile.rollback Failed to rollback local meta");
+        }
+        // Load the old local meta into memory
+        local_meta_ = parseJson(local_meta_path_);
+        return 0;
 	}
 	
 	/**
@@ -121,12 +180,15 @@ public class GetFile {
 		    json = (JsonObject) JsonParser.parseReader(reader);
 		} catch (FileNotFoundException e) {
 			System.err.println("GetFile.parseJson FileNotFound");
+			e.printStackTrace();
 			throw new RuntimeException(e);
 		} catch (UnsupportedEncodingException e) {
+			e.printStackTrace();
 			System.err.println("GetFile.parseJson UnsupportedEncoding");
 			throw new RuntimeException(e);
 		} catch (IOException e) {
 			System.err.println("GetFile.parseJson IOException");
+			e.printStackTrace();
 			throw new RuntimeException(e);
 		}
 		return json;
@@ -171,7 +233,7 @@ public class GetFile {
 			writer.flush();
 			writer.close();
 		} catch (NullPointerException | IOException e) {
-			System.err.println(e);
+			e.printStackTrace();
 			System.err.printf("GetFile.setClientMeta Failed to set %s[%s]\n",
 					file, key);
 		}
@@ -189,15 +251,13 @@ public class GetFile {
 			return ((JsonObject) meta.get(file))
 				.get(key).toString().replaceAll("\"", "");
 		} catch (NullPointerException e) {
-			System.err.println(e);
+			e.printStackTrace();
 			System.err.printf(
 					"GetFile.getMetaImpl %s.%s not found in meta\n", file, key);
 			return "";
 		}
 	}
-	
-	// TODO: Move download functions into DownloadUtil class
-	
+		
 	/**
 	 * Downloads a file with MD5 validation
 	 * @param fileUrl				URL of file to download
@@ -206,30 +266,35 @@ public class GetFile {
 	 */
 	private int downloadFile(String fileUrl, String saveLocation) {
 		try {
+			File savLoc = new File(saveLocation);
 			// Download the file from the given URL
-			File file = new File(".".concat(saveLocation));
-			FileUtils.copyURLToFile(new URI(fileUrl).toURL(), file);
+			File dwnLoc = new File(saveLocation.concat(".part"));
+			FileUtils.copyURLToFile(new URI(fileUrl).toURL(), dwnLoc);
 			 // Calculate the MD5 checksum of the downloaded file
 			String calculatedMd5 =
-					DigestUtils.md5Hex(Files.newInputStream(file.toPath()));
+					DigestUtils.md5Hex(Files.newInputStream(dwnLoc.toPath()));
 			if (calculatedMd5.equalsIgnoreCase(getExpectedMd5(fileUrl))) {
-				// TODO: Swap hidden file such that .file represents old version
-				// Currently we're tossing the old version by overwriting
-				FileUtils.copyFile(file, new File(saveLocation));
-				file.delete();
+				FileUtils.copyFile(dwnLoc, savLoc);
+				if (dwnLoc.exists()) {
+					dwnLoc.delete();
+				}
 				System.out.printf(
 						"GetFile.downloadFile downloaded %s\n",	fileUrl);
 				return 0;
 			}
-			if (file.exists()) {
-				file.delete();
+			if (dwnLoc.exists()) {
+				dwnLoc.delete();
 			}
 			System.err.printf("GetFile.downloadFile MD5 validation failed: %s\n", fileUrl);
 			return 1;
 		} catch (IOException | URISyntaxException e) {
 			System.err.println("GetFile.downloadFile Unable to connect to server");
+			File dwnLoc = new File(saveLocation.concat(".part"));
+			if (dwnLoc.exists()) {
+				dwnLoc.delete();
+			}
+			System.err.println(e);
 			throw new RuntimeException(e);
-			
 		}
 	}
 
@@ -248,6 +313,7 @@ public class GetFile {
 			System.err.printf(
 					"GetFile.getExpectedMd5 Could not find precomputed Md5 checksum for %s\n",
 					fileUrl);
+			System.err.println(e);
 			throw new RuntimeException(e);
 		}
 	}

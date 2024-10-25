@@ -2,10 +2,14 @@ package org.scec.getfile;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
+import java.io.File;
+import java.io.IOException;
+
 import static com.github.tomakehurst.wiremock.client.WireMock.aResponse;
 import static com.github.tomakehurst.wiremock.client.WireMock.get;
 
 import org.junit.jupiter.api.BeforeEach;
+import org.apache.commons.io.FileUtils;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 
@@ -55,8 +59,6 @@ public class GetFileTest {
 		if (wireMockServer != null && wireMockServer.isRunning()) {
 	        wireMockServer.stop();
 	    }
-		// TODO: Reset files to initial outdated condition after updating
-		// Manually set the values of each file with hardcoded strings.
 	}
 
 	/**
@@ -69,7 +71,7 @@ public class GetFileTest {
 	}
 
 	/**
-	 * Get the latest version of a file on the server.
+	 * Get the current version of a file on the client.
 	 */
 	@Test
 	public void currentVersion() {
@@ -78,14 +80,33 @@ public class GetFileTest {
 	}
 	
 	/**
-	 * Ensure outdated files are successfully updated.
+	 * Ensure outdated files are successfully updated and can be rolled back
+	 * @throws IOException 
 	 */
 	@Test
-	public void updateAll() {
+	public void updateAndRollback() throws IOException {
+		// Ensure initial state of local meta
+		assertEquals(getfile.getClientMeta("file1", "version"), "v0.1.1");
+		assertEquals(getfile.getClientMeta("file2", "version"), "v1.0.0");
+		// Read expected data in file
+		assertEquals(FileUtils.readFileToString(
+				new File("src/test/resources/file2.txt"), "utf-8"),
+				"Hi! I'm file2 at v1.0.0.\n");
+		// Update files and meta from server
 		getfile.updateAll();
-	/* TODO
-	 * Validate new value of files match updated versions
-	 * Verify that currentVersion metadata is updated
-	 */
+		// Local meta should be updated
+		assertEquals(getfile.getClientMeta("file1", "version"), "v0.1.1");
+		assertEquals(getfile.getClientMeta("file2", "version"), "v1.3.1");
+		assertEquals(FileUtils.readFileToString(
+				new File("src/test/resources/file2.txt"), "utf-8"),
+				"Hi! I'm file2 at v1.3.1.\n");
+		// Rollback to previous state
+		getfile.rollback();
+		// Local meta should be back at initial state
+		assertEquals(getfile.getClientMeta("file1", "version"), "v0.1.1");
+		assertEquals(getfile.getClientMeta("file2", "version"), "v1.0.0");
+		assertEquals(FileUtils.readFileToString(
+				new File("src/test/resources/file2.txt"), "utf-8"),
+				"Hi! I'm file2 at v1.0.0.\n");
 	}
 }
