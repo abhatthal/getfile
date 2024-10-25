@@ -88,7 +88,7 @@ public class GetFileTest {
 		// Ensure initial state of local meta
 		assertEquals(getfile.getClientMeta("file1", "version"), "v0.1.1");
 		assertEquals(getfile.getClientMeta("file2", "version"), "v1.0.0");
-		// Read expected data in file
+		// Initial state of file data
 		assertEquals(FileUtils.readFileToString(
 				new File("src/test/resources/file2.txt"), "utf-8"),
 				"Hi! I'm file2 at v1.0.0.\n");
@@ -97,6 +97,7 @@ public class GetFileTest {
 		// Local meta should be updated
 		assertEquals(getfile.getClientMeta("file1", "version"), "v0.1.1");
 		assertEquals(getfile.getClientMeta("file2", "version"), "v1.3.1");
+		// Updated file data
 		assertEquals(FileUtils.readFileToString(
 				new File("src/test/resources/file2.txt"), "utf-8"),
 				"Hi! I'm file2 at v1.3.1.\n");
@@ -105,6 +106,7 @@ public class GetFileTest {
 		// Local meta should be back at initial state
 		assertEquals(getfile.getClientMeta("file1", "version"), "v0.1.1");
 		assertEquals(getfile.getClientMeta("file2", "version"), "v1.0.0");
+		// also reverted file data to initial state
 		assertEquals(FileUtils.readFileToString(
 				new File("src/test/resources/file2.txt"), "utf-8"),
 				"Hi! I'm file2 at v1.0.0.\n");
