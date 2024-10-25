@@ -60,7 +60,7 @@ public class GetFile {
 	 */
 	public int updateAll() {
 		if (local_meta_ == null || server_meta_ == null) {
-			System.err.println("Unable to get metadata. Not updating files.");
+			System.err.println("GetFile.updateAll: Unable to get metadata. Not updating files.");
 			return 1;
 		}
 		// Backup local file metadata prior to updating.
@@ -72,7 +72,7 @@ public class GetFile {
             String serverVersion = getServerMeta(file, "version");
             if (serverVersion == "") {
             	System.err.println(
-            			"GetFile.updateAll File metadata found in client missing on server");
+            			"GetFile.updateAll: File metadata found in client missing on server");
             	return 1;
             }
 			// We must backup the file regardless of version to ensure matches
@@ -81,7 +81,7 @@ public class GetFile {
 			backupFile(local_file_path);
 			// Only download files where versions don't match.
             if (!clientVersion.equals(serverVersion)) {
-            	System.out.printf("Update %s %s => %s\n",
+            	System.out.printf("GetFile.updateAll: Update %s %s => %s\n",
             			file, clientVersion, serverVersion);
             	String updateType = getClientMeta(file, "update_type");
             	if ((updateType.equals("manual") && promptDownload()) ||
@@ -93,7 +93,7 @@ public class GetFile {
             		setClientMeta(file, "version", serverVersion);
             	} else {
             		System.err.printf(
-            				"GetFile.updateAll Invalid update_type \"%s\". " +
+            				"GetFile.updateAll: Invalid update_type \"%s\". " +
             				"Skip update for file \"%s\"\n",
             				updateType, file);
             		return 1;
@@ -113,7 +113,7 @@ public class GetFile {
 				FileUtils.copyFile(file, new File(filePath.concat(".bak")));
 			} catch (IOException e) {
 				System.err.printf(
-						"GetFile.backupFile Failed to backup %s\n", filePath);
+						"GetFile.backupFile: Failed to backup %s\n", filePath);
 				e.printStackTrace();
 			}
 		}
@@ -125,7 +125,7 @@ public class GetFile {
 	 */
 	public int rollback() {
 		if (local_meta_ == null) {
-			System.err.println("Unable to get metadata. Not rolling back.");
+			System.err.println("Getfile.rollback: Unable to get metadata. Not rolling back.");
 			return 1;
 		}
 		// Iterate over the local files to potentially rollback.
@@ -139,11 +139,11 @@ public class GetFile {
 						FileUtils.copyFile(bakLoc, savLoc);
 						bakLoc.delete();
 						System.out.printf(
-								"GetFile.rollback rolled back %s\n", file);
+								"GetFile.rollback: rolled back %s\n", file);
 				}
 			} catch (IOException e) {
 				System.err.printf(
-						"GetFile.rollback Failed to rollback %s\n", filePath);
+						"GetFile.rollback: Failed to rollback %s\n", filePath);
 				e.printStackTrace();
 			}
         }
@@ -154,13 +154,13 @@ public class GetFile {
         	try {
 				FileUtils.copyFile(local_meta_bak, local_meta_file);
 				local_meta_bak.delete();
-				System.out.println("GetFile.rollback rolled back local meta");
+				System.out.println("GetFile.rollback: rolled back local meta");
         	} catch (IOException e) {
-				System.err.println("GetFile.rollback Failed to read local meta files");
+				System.err.println("GetFile.rollback: Failed to read local meta files");
 				e.printStackTrace();
         	}
         } else {
-				System.err.println("GetFile.rollback Failed to rollback local meta");
+				System.err.println("GetFile.rollback: Failed to rollback local meta");
         }
         // Load the old local meta into memory
         local_meta_ = parseJson(local_meta_path_);
@@ -179,15 +179,15 @@ public class GetFile {
 				new FileInputStream(jsonFile), "UTF-8")) {
 		    json = (JsonObject) JsonParser.parseReader(reader);
 		} catch (FileNotFoundException e) {
-			System.err.println("GetFile.parseJson FileNotFound");
+			System.err.println("GetFile.parseJson: FileNotFound");
 			e.printStackTrace();
 			throw new RuntimeException(e);
 		} catch (UnsupportedEncodingException e) {
 			e.printStackTrace();
-			System.err.println("GetFile.parseJson UnsupportedEncoding");
+			System.err.println("GetFile.parseJson: UnsupportedEncoding");
 			throw new RuntimeException(e);
 		} catch (IOException e) {
-			System.err.println("GetFile.parseJson IOException");
+			System.err.println("GetFile.parseJson: IOException");
 			e.printStackTrace();
 			throw new RuntimeException(e);
 		}
@@ -234,7 +234,7 @@ public class GetFile {
 			writer.close();
 		} catch (NullPointerException | IOException e) {
 			e.printStackTrace();
-			System.err.printf("GetFile.setClientMeta Failed to set %s[%s]\n",
+			System.err.printf("GetFile.setClientMeta: Failed to set %s[%s]\n",
 					file, key);
 		}
 	}
@@ -253,7 +253,7 @@ public class GetFile {
 		} catch (NullPointerException e) {
 			e.printStackTrace();
 			System.err.printf(
-					"GetFile.getMetaImpl %s.%s not found in meta\n", file, key);
+					"GetFile.getMetaImpl: %s.%s not found in meta\n", file, key);
 			return "";
 		}
 	}
@@ -279,16 +279,16 @@ public class GetFile {
 					dwnLoc.delete();
 				}
 				System.out.printf(
-						"GetFile.downloadFile downloaded %s\n",	fileUrl);
+						"GetFile.downloadFile: downloaded %s\n",	fileUrl);
 				return 0;
 			}
 			if (dwnLoc.exists()) {
 				dwnLoc.delete();
 			}
-			System.err.printf("GetFile.downloadFile MD5 validation failed: %s\n", fileUrl);
+			System.err.printf("GetFile.downloadFile: MD5 validation failed: %s\n", fileUrl);
 			return 1;
 		} catch (IOException | URISyntaxException e) {
-			System.err.println("GetFile.downloadFile Unable to connect to server");
+			System.err.println("GetFile.downloadFile: Unable to connect to server");
 			File dwnLoc = new File(saveLocation.concat(".part"));
 			if (dwnLoc.exists()) {
 				dwnLoc.delete();
@@ -311,7 +311,7 @@ public class GetFile {
 			return IOUtils.toString(inputStream, StandardCharsets.UTF_8);
 		} catch (URISyntaxException | IOException e) {
 			System.err.printf(
-					"GetFile.getExpectedMd5 Could not find precomputed Md5 checksum for %s\n",
+					"GetFile.getExpectedMd5: Could not find precomputed Md5 checksum for %s\n",
 					fileUrl);
 			System.err.println(e);
 			throw new RuntimeException(e);
