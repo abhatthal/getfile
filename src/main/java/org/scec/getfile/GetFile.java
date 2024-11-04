@@ -24,6 +24,11 @@ import java.io.InputStream;
 import java.io.InputStreamReader;
 
 // TODO: Move download functions into DownloadUtil class
+// TODO: Create a DownloadPrompt class with corresponding logic
+// TODO: Add check if new meta file is different to backup.
+//		 If the new meta is unchanged, then don't bother trying to update.
+//		 This also requires us to keep a cached copy of the server meta
+//		 and to handle failure to download meta logic.
 
 /**
  * A GetFile instance contains all the logic required
@@ -34,8 +39,8 @@ public class GetFile {
 	/**
 	 * Constructor establishes connection with server and parses local and
 	 * server file metadata into memory.
-	 * @param server		String of URL to connect to
-	 * @param getfileJson	Path to local file metadata
+	 * @param server			String of URL to connect to
+	 * @param local_meta_path	Path to local file metadata
 	 */
 	public GetFile(String server, String local_meta_path) {
 		// Read the local getfile json to get current file versions.
@@ -344,9 +349,13 @@ public class GetFile {
 		// In the event of a manual update type, prompt the user prior to download
 		// "Would you like to update `file` version to latestVersion now?"
 		// "Update Now" ,"Later", "Skip this Version"
+
 		// Returns false for Later or Skip options.
 		// If we want to be able to skip versions,
 		// we need to keep a JsonObj of skipped versions per file inside getfile.json
+
+		// I need to manually test the behaviour of promptDownload when
+		// invoked in updateAll.
 		return true;  // TODO
 	}
 	
