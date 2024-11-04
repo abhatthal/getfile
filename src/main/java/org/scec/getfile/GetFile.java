@@ -88,9 +88,9 @@ public class GetFile {
             if (!clientVersion.equals(serverVersion)) {
             	System.out.printf("GetFile.updateAll: Update %s %s => %s\n",
             			file, clientVersion, serverVersion);
-            	String updateType = getClientMeta(file, "update_type");
-            	if ((updateType.equals("manual") && promptDownload()) ||
-            			updateType.equals("automatic")) {
+            	String shouldPrompt = getClientMeta(file, "prompt");
+            	if ((shouldPrompt.equals("true") && promptDownload()) ||
+            			shouldPrompt.equals("false")) {
             		// Download and validate the new file from the server
             		downloadFile(server_.concat(getServerMeta(file, "path")),
             				local_file_path, /*retries=*/3);
@@ -98,9 +98,9 @@ public class GetFile {
             		setClientMeta(file, "version", serverVersion);
             	} else {
             		System.err.printf(
-            				"GetFile.updateAll: Invalid update_type \"%s\". " +
+            				"GetFile.updateAll: Invalid prompt \"%s\". " +
             				"Skip update for file \"%s\"\n",
-            				updateType, file);
+            				shouldPrompt, file);
             		return 1;
             	}
             }

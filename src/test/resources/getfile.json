@@ -2,12 +2,12 @@
     "file1": {
       "version": "v0.1.1",
       "path": "src/test/resources/file1.txt",
-      "update_type": "manual"
+      "prompt": "true"
     },
     "file2": {
       "version": "v1.0.0",
       "path": "src/test/resources/file2.txt",
-      "update_type": "automatic"
+      "prompt": "false"
     }
 }
 
