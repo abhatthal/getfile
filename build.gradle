@@ -2,8 +2,11 @@
  * getfile dependencies
  */
 
-apply plugin: 'java-library'
-apply plugin: 'eclipse'
+plugins {
+	id 'java-library'
+	id 'eclipse'
+	id 'com.github.johnrengelman.shadow' version '8.1.1'	
+}
 
 ext {
     parentProject = null
