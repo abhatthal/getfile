@@ -45,11 +45,12 @@ TODO: Explain how to remove files from server and stop clients from searching fo
 
 TODO: Update library to prompt users to delete local files when removed from server and update local configuration accordingly.
 
-## Example Configuration
+## Example
 TODO: Finish this section
 
-Show example files used for testing, with JSON files on server and client.
+Show config used for testing, with JSON files on server and client.
 
 Explain what each parameter does in detail.
 
-
+## Notable Apps
+TODO: Mention how OpenSHA utilizes GetFile and provide a link to the corresponding code.
