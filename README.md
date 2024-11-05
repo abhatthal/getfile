@@ -21,6 +21,12 @@ TODO: Provide library jar release for download and instructions for
       
 TODO: Link to example JSON configuration and API documentation.
 
+## Building
+You can build your own thin or Fat JAR file from source to use as a dependency in your application.
+* `gradle shadowJar`
+* Copy Fat JAR `build/libs/getfile-all.jar` into your project lib directory
+* Thin JAR is also available at `build/libs/getfile.jar`, but you must manually specify dependencies
+* In a Gradle project, you would add using `implementation files('lib/getfile-all.jar')`
 
 ## Adding Files
 TODO: Finish this section
