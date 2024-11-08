@@ -1,13 +1,10 @@
 {
-    "file1": {
-      "version": "v0.1.1",
-      "path": "src/test/resources/file1.txt",
-      "prompt": "true"
-    },
-    "file2": {
-      "version": "v1.0.0",
-      "path": "src/test/resources/file2.txt",
-      "prompt": "false"
-    }
+  "file1": {
+    "version": "v0.1.1",
+    "prompt": "true"
+  },
+  "file2": {
+    "version": "v1.0.0",
+    "prompt": "false"
+  }
 }
-

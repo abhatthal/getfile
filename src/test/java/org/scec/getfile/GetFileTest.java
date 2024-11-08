@@ -48,8 +48,8 @@ public class GetFileTest {
                         .withBodyFile("meta.json.md5")));
 
 		// Set up GetFile instance after server initialization
-		getfile = new GetFile(/*server=*/"http://localhost:8088/",
-				/*getfileJson=*/"src/test/resources/getfile.json");
+		getfile = new GetFile(/*serverPath=*/"http://localhost:8088/",
+				/*clientPath=*/"src/test/resources/");
 
 	}
 	
@@ -59,6 +59,14 @@ public class GetFileTest {
 		if (wireMockServer != null && wireMockServer.isRunning()) {
 	        wireMockServer.stop();
 	    }
+		File cache = new File("src/test/resources/meta.json");
+		if (cache.exists()) {
+			try {
+				FileUtils.delete(cache);
+			} catch (IOException e) {
+				e.printStackTrace();
+			}
+		}
 	}
 
 	/**
@@ -90,7 +98,7 @@ public class GetFileTest {
 		assertEquals(getfile.getClientMeta("file2", "version"), "v1.0.0");
 		// Initial state of file data
 		assertEquals(FileUtils.readFileToString(
-				new File("src/test/resources/file2.txt"), "utf-8"),
+				new File("src/test/resources/data/file2.txt"), "utf-8"),
 				"Hi! I'm file2 at v1.0.0.\n");
 		// Update files and meta from server
 		getfile.updateAll();
@@ -99,7 +107,7 @@ public class GetFileTest {
 		assertEquals(getfile.getClientMeta("file2", "version"), "v1.3.1");
 		// Updated file data
 		assertEquals(FileUtils.readFileToString(
-				new File("src/test/resources/file2.txt"), "utf-8"),
+				new File("src/test/resources/data/file2.txt"), "utf-8"),
 				"Hi! I'm file2 at v1.3.1.\n");
 		// Rollback to previous state
 		getfile.rollback();
@@ -108,7 +116,15 @@ public class GetFileTest {
 		assertEquals(getfile.getClientMeta("file2", "version"), "v1.0.0");
 		// also reverted file data to initial state
 		assertEquals(FileUtils.readFileToString(
-				new File("src/test/resources/file2.txt"), "utf-8"),
+				new File("src/test/resources/data/file2.txt"), "utf-8"),
 				"Hi! I'm file2 at v1.0.0.\n");
 	}
+	
+	/** TODO: Implement these tests
+	 *   justRollback: Test behavior of rollback before first update
+	 *   MultiUpdate: Updating multiple times shouldn't corrupt backups
+	 *   NewServerFile: Create new entry when new file entry on server
+	 *   MissingServerFile: Currently ignores file. May want to prompt for deletion in future
+	 *   ChangedPath: Behavior when an existing file on server has its path changed (data and metadata)
+	 */
 }

@@ -25,10 +25,7 @@ import java.io.InputStreamReader;
 
 // TODO: Move download functions into DownloadUtil class
 // TODO: Create a DownloadPrompt class with corresponding logic
-// TODO: Add check if new meta file is different to backup.
-//		 If the new meta is unchanged, then don't bother trying to update.
-//		 This also requires us to keep a cached copy of the server meta
-//		 and to handle failure to download meta logic.
+// TODO: See missing tests for GetFileTest
 
 /**
  * A GetFile instance contains all the logic required
@@ -39,24 +36,39 @@ public class GetFile {
 	/**
 	 * Constructor establishes connection with server and parses local and
 	 * server file metadata into memory.
-	 * @param server			String of URL to connect to
-	 * @param local_meta_path	Path to local file metadata
+	 * @param serverPath		Server metadata and new files found here
+	 * @param clientPath		Local metadata and downloaded files here
 	 */
-	public GetFile(String server, String local_meta_path) {
-		// Read the local getfile json to get current file versions.
-		local_meta_ = parseJson(local_meta_path);	
-		local_meta_path_ = local_meta_path;
+	public GetFile(String serverPath, String clientPath) {
+		this.serverPath = serverPath;
+		this.clientPath = clientPath;
+		// Get current file versions
+		this.clientMeta = parseJson(clientPath.concat(clientMetaName));	
 		// Get a fresh copy of the latest file versions
-		final String server_meta_name = "meta.json";
-		downloadFile(server.concat(server_meta_name),
-				server_meta_name, /*retries=*/3);
-		server_meta_ = parseJson(server_meta_name);
-		// Delete cached copy of server meta as we always want fresh data.
-		File server_meta_file = new File(server_meta_name);
-		if (server_meta_file.exists()) {
-			server_meta_file.deleteOnExit();
+		final File cachedServerMetaFile = new File(clientPath.concat(serverMetaName));
+		final File freshServerMetaFile = new File(clientPath.concat("."+serverMetaName));
+		downloadFile(serverPath.concat(serverMetaName),
+				freshServerMetaFile.getPath(), /*retries=*/3);
+		try {
+			// Proceed with download if no cache hit
+			if (!cachedServerMetaFile.exists() ||
+				!FileUtils.contentEquals(
+						cachedServerMetaFile, freshServerMetaFile)) {
+				// Overwrite cache with fresh data
+				if (cachedServerMetaFile.exists()) {
+					FileUtils.delete(cachedServerMetaFile);
+				}
+				FileUtils.moveFile(freshServerMetaFile, cachedServerMetaFile);
+				System.out.println("GetFile.GetFile: New files are available to download.");
+			} else {
+				FileUtils.delete(freshServerMetaFile);
+				System.out.println("GetFile.GetFile: No new files found.");
+			}
+			this.serverMeta = parseJson(cachedServerMetaFile.getPath());
+		} catch (IOException e) {
+			System.err.println("GetFile.GetFile: IOException reading cache");
+			e.printStackTrace();
 		}
-		server_ = server;
 	}
 	
 	/**
@@ -64,36 +76,38 @@ public class GetFile {
 	 * @return 0 if success and 1 if any failure
 	 */
 	public int updateAll() {
-		if (local_meta_ == null || server_meta_ == null) {
+		if (clientMeta == null || serverMeta == null) {
 			System.err.println("GetFile.updateAll: Unable to get metadata. Not updating files.");
 			return 1;
 		}
+		int status = 0;  // Returns 0 if no errors
 		// Backup local file metadata prior to updating.
-		backupFile(local_meta_path_);
-		// Iterate over the local files to potentially update
-        for (java.util.Map.Entry<String, JsonElement> entry : local_meta_.entrySet()) {
+		backupFile(clientPath.concat(clientMetaName));
+		// Iterate over the files on the server
+        for (java.util.Map.Entry<String, JsonElement> entry : serverMeta.entrySet()) {
             String file = entry.getKey();
-            String clientVersion = getClientMeta(file, "version");
             String serverVersion = getServerMeta(file, "version");
-            if (serverVersion == "") {
-            	System.err.println(
-            			"GetFile.updateAll: File metadata found in client missing on server");
-            	return 1;
+            String clientVersion = getClientMeta(file, "version");
+            System.out.printf("%s %s %s\n", file, serverVersion, clientVersion);
+            // Create the file entry if it doesn't already exist
+            if (clientVersion.equals("")) {
+            	newClientEntry(file);
             }
-			// We must backup the file regardless of version to ensure matches
-            // local meta backup. :. Invoking updateAll twice will purge backup.
-			String local_file_path = getClientMeta(file, "path");
-			backupFile(local_file_path);
+			String downloadPath = clientPath.concat(getServerMeta(file, "path"));
+			backupFile(downloadPath);
 			// Only download files where versions don't match.
             if (!clientVersion.equals(serverVersion)) {
             	System.out.printf("GetFile.updateAll: Update %s %s => %s\n",
             			file, clientVersion, serverVersion);
             	String shouldPrompt = getClientMeta(file, "prompt");
+            	if (shouldPrompt.equals("")) {
+            		shouldPrompt = String.valueOf(promptByDefault);
+            	}
             	if ((shouldPrompt.equals("true") && promptDownload()) ||
             			shouldPrompt.equals("false")) {
             		// Download and validate the new file from the server
-            		downloadFile(server_.concat(getServerMeta(file, "path")),
-            				local_file_path, /*retries=*/3);
+            		downloadFile(serverPath.concat(getServerMeta(file, "path")),
+            				downloadPath, /*retries=*/3);
             		// Update the client meta version accordingly
             		setClientMeta(file, "version", serverVersion);
             	} else {
@@ -101,11 +115,11 @@ public class GetFile {
             				"GetFile.updateAll: Invalid prompt \"%s\". " +
             				"Skip update for file \"%s\"\n",
             				shouldPrompt, file);
-            		return 1;
+            		status = 1;
             	}
             }
         }
-		return 0;
+		return status;
 	}
 	
 	/**
@@ -118,7 +132,7 @@ public class GetFile {
 				FileUtils.copyFile(file, new File(filePath.concat(".bak")));
 			} catch (IOException e) {
 				System.err.printf(
-						"GetFile.backupFile: Failed to backup %s\n", filePath);
+						"GetFile.backupFile: Refused to backup %s\n", filePath);
 				e.printStackTrace();
 			}
 		}
@@ -129,20 +143,20 @@ public class GetFile {
 	 * @return 0 if success and 1 if unable to rollback.
 	 */
 	public int rollback() {
-		if (local_meta_ == null) {
+		if (clientMeta == null) {
 			System.err.println("Getfile.rollback: Unable to get metadata. Not rolling back.");
 			return 1;
 		}
 		// Iterate over the local files to potentially rollback.
-        for (java.util.Map.Entry<String, JsonElement> entry : local_meta_.entrySet()) {
+        for (java.util.Map.Entry<String, JsonElement> entry : clientMeta.entrySet()) {
 				String file = entry.getKey();
-				String filePath = getClientMeta(file, "path");
+				String filePath = clientPath.concat(getServerMeta(file, "path"));
         	try {
 				File savLoc = new File(filePath);
 				File bakLoc = new File(filePath.concat(".bak"));
 				if (savLoc.exists() && bakLoc.exists()) {
-						FileUtils.copyFile(bakLoc, savLoc);
-						bakLoc.delete();
+						FileUtils.delete(savLoc);
+						FileUtils.moveFile(bakLoc, savLoc);
 						System.out.printf(
 								"GetFile.rollback: rolled back %s\n", file);
 				}
@@ -153,12 +167,12 @@ public class GetFile {
 			}
         }
         // Rollback the local meta itself
-        File local_meta_file = new File(local_meta_path_);
-        File local_meta_bak = new File(local_meta_path_.concat(".bak"));
-        if (local_meta_file.exists() && local_meta_bak.exists()) {
+        File clientMetaFile = new File(clientPath.concat(clientMetaName));
+        File clientMetaBak = new File(clientMetaFile.getPath().concat(".bak"));
+        if (clientMetaFile.exists() && clientMetaBak.exists()) {
         	try {
-				FileUtils.copyFile(local_meta_bak, local_meta_file);
-				local_meta_bak.delete();
+        		clientMetaFile.delete();
+				FileUtils.moveFile(clientMetaBak, clientMetaFile);
 				System.out.println("GetFile.rollback: rolled back local meta");
         	} catch (IOException e) {
 				System.err.println("GetFile.rollback: Failed to read local meta files");
@@ -167,21 +181,21 @@ public class GetFile {
         } else {
 				System.err.println("GetFile.rollback: Failed to rollback local meta");
         }
-        // Load the old local meta into memory
-        local_meta_ = parseJson(local_meta_path_);
+        // Load the client meta into memory
+		this.clientMeta = parseJson(clientMetaFile.getPath());	
         return 0;
 	}
 	
 	/**
 	 * Read a JSON file into memory for evaluation
-	 * @param jsonFile		Path to a JSON file
-	 * @return
+	 * @param jsonFile		JSON file to parse
+	 * @return				JSON tree interpreted as an object
 	 */
 	private JsonObject parseJson(String jsonFile) {
 		// https://stackoverflow.com/a/62106829
 		JsonObject json = null;
 		try (Reader reader = new InputStreamReader(
-				new FileInputStream(jsonFile), "UTF-8")) {
+				new FileInputStream(jsonFile), StandardCharsets.UTF_8)) {
 		    json = (JsonObject) JsonParser.parseReader(reader);
 		} catch (FileNotFoundException e) {
 			System.err.println("GetFile.parseJson: FileNotFound");
@@ -207,7 +221,7 @@ public class GetFile {
 	 * @return			Value corresponding to key in JSON
 	 */
 	public String getServerMeta(String file, String key) {
-		return getMetaImpl(file, key, server_meta_);
+		return getMetaImpl(file, key, serverMeta);
 	}
 	
 	/**
@@ -217,12 +231,14 @@ public class GetFile {
 	 * @return			Value corresponding to key in JSON
 	 */
 	public String getClientMeta(String file, String key) {
-		return getMetaImpl(file, key, local_meta_);
+		return getMetaImpl(file, key, clientMeta);
 	}
 	
 	/**
 	 * Set file[key] = value in client metadata.
 	 * Used to update client file version after successful update.
+	 * This requires the file entry to exist. File entries are created with
+	 * the function `newClientEntry`.
 	 * @param file
 	 * @param key
 	 * @param value
@@ -230,22 +246,50 @@ public class GetFile {
 	private void setClientMeta(String file, String key, String value) {
 		try {
 			// Update the file value in memory
-			((JsonObject) local_meta_.get(file)).addProperty(key, value);
+			((JsonObject) clientMeta.get(file)).addProperty(key, value);
 			// Write the new JSON to disk
-			Gson gson = new GsonBuilder().setPrettyPrinting().create();
-            FileWriter writer = new FileWriter(local_meta_path_);
-			gson.toJson(local_meta_, writer);
-			writer.flush();
-			writer.close();
-		} catch (NullPointerException | IOException e) {
+			writeClientMetaState();
+		} catch (NullPointerException e) {
 			e.printStackTrace();
 			System.err.printf("GetFile.setClientMeta: Failed to set %s[%s]\n",
 					file, key);
 		}
 	}
+	
+	/**
+	 * Create a new JsonObject for the client metadata.
+	 * When a new file is discovered on the server, we need to start tracking
+	 * client versions and update our client metadata accordingly.
+	 * @param file	Name of new JsonObject entry
+	 */
+	private void newClientEntry(String file) {
+		JsonObject newFileEntry = new JsonObject();
+		newFileEntry.addProperty("version", "");
+		newFileEntry.addProperty("prompt", String.valueOf(promptByDefault));
+		System.out.println(newFileEntry.toString());
+		clientMeta.add(file, newFileEntry);
+		writeClientMetaState();
+	}
+	
+	/**
+	 * Push current state of clientMeta in memory to the client meta file on disk.
+	 */
+	private void writeClientMetaState() {
+		Gson gson = new GsonBuilder().setPrettyPrinting().create();
+		try {
+			FileWriter writer = new FileWriter(clientPath.concat(clientMetaName));
+			gson.toJson(clientMeta, writer);
+			writer.flush();
+			writer.close();
+		} catch (IOException e) {
+			e.printStackTrace();
+			System.err.println(
+					"GetFile.writeClientMetaState: Failed to write clientMeta to disk");
+		}
+	}
 
 	/**
-	 * Shared logic for getServerFileVal and getClientFileVal
+	 * Shared logic for reading key-value pairs in file entry JsonObject.
 	 * @param file		Key in the meta JSON file. Not necessarily filename.
 	 * @param key		Filedata to lookup, i.e. path, version
 	 * @param meta		Which metadata to consider
@@ -359,9 +403,14 @@ public class GetFile {
 		return true;  // TODO
 	}
 	
-	private final String server_;
-	private final String local_meta_path_;
-	private JsonObject server_meta_;
-	private JsonObject local_meta_;
-	
+	private boolean promptByDefault = false;  // Should prompt to update a file
+	// Names of metadata files
+	private final String clientMetaName = "getfile.json";
+	private final String serverMetaName = "meta.json";
+	// Where to find metadata and data files on client and server
+	private final String serverPath;
+	private final String clientPath;
+	// Parsed metadata objects
+	private JsonObject serverMeta;
+	private JsonObject clientMeta;
 }
