@@ -6,5 +6,9 @@
 	"file2": {
 		"version": "v1.3.1",
 		"path": "data/file2.txt"
+	},
+	"file3": {
+		"version": "v0.1.2",
+		"path": "data/file3/file3.txt"
 	}
 }

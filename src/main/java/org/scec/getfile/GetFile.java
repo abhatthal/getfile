@@ -8,6 +8,7 @@ import com.google.gson.JsonParser;
 import org.apache.commons.codec.digest.DigestUtils;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.IOUtils;
+import org.apache.commons.io.LineIterator;
 
 import java.io.File;
 import java.io.FileInputStream;
@@ -19,13 +20,15 @@ import java.net.URI;
 import java.net.URISyntaxException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 
 // TODO: Move download functions into DownloadUtil class
 // TODO: Create a DownloadPrompt class with corresponding logic
-// TODO: See missing tests for GetFileTest
+// TODO: Set up modules to make utility classes private outside JAR
 
 /**
  * A GetFile instance contains all the logic required
@@ -60,22 +63,32 @@ public class GetFile {
 				}
 				FileUtils.moveFile(freshServerMetaFile, cachedServerMetaFile);
 				System.out.println("GetFile.GetFile: New files are available to download.");
+				this.updatesAvailable = true;
 			} else {
 				FileUtils.delete(freshServerMetaFile);
 				System.out.println("GetFile.GetFile: No new files found.");
+				this.updatesAvailable = false;
 			}
 			this.serverMeta = parseJson(cachedServerMetaFile.getPath());
 		} catch (IOException e) {
 			System.err.println("GetFile.GetFile: IOException reading cache");
+			this.serverMeta = null;
+			this.updatesAvailable = false;
 			e.printStackTrace();
 		}
 	}
 	
 	/**
 	 * Update all local files using new server files.
+	 * This will force an update regardless of if there are any changes.
+	 * Will also overwrite any backups.
 	 * @return 0 if success and 1 if any failure
 	 */
 	public int updateAll() {
+		if (!updatesAvailable) {
+			System.err.println("GetFile.updateAll: Refusing to update files. No new changes.");
+			return 1;
+		}
 		if (clientMeta == null || serverMeta == null) {
 			System.err.println("GetFile.updateAll: Unable to get metadata. Not updating files.");
 			return 1;
@@ -88,13 +101,16 @@ public class GetFile {
             String file = entry.getKey();
             String serverVersion = getServerMeta(file, "version");
             String clientVersion = getClientMeta(file, "version");
-            System.out.printf("%s %s %s\n", file, serverVersion, clientVersion);
+			String downloadPath = clientPath.concat(getServerMeta(file, "path"));
             // Create the file entry if it doesn't already exist
             if (clientVersion.equals("")) {
             	newClientEntry(file);
+            	// Delete new file on rollback since there's no version previously.
+            	markForDeletion(downloadPath);
+            	
+            } else {
+            	backupFile(downloadPath);
             }
-			String downloadPath = clientPath.concat(getServerMeta(file, "path"));
-			backupFile(downloadPath);
 			// Only download files where versions don't match.
             if (!clientVersion.equals(serverVersion)) {
             	System.out.printf("GetFile.updateAll: Update %s %s => %s\n",
@@ -119,11 +135,13 @@ public class GetFile {
             	}
             }
         }
+        updatesAvailable = false;
 		return status;
 	}
 	
 	/**
 	 * Backs up file if it exists
+	 * @param filePath
 	 */
 	private void backupFile(String filePath) {
 		File file = new File(filePath);
@@ -139,6 +157,83 @@ public class GetFile {
 	}
 	
 	/**
+	 * In the event that the file is rolled back, instead of restoring an older
+	 * version, the file will just be deleted.
+	 * This is used when newly created files should be rolled back to not existing.
+	 * @param filePath
+	 */
+	private void markForDeletion(String filePath) {
+		File bak = new File(filePath.concat(".bak"));
+		if (!bak.exists()) {
+			try {
+				FileUtils.writeStringToFile(bak, deleteMarker, StandardCharsets.UTF_8);
+				System.out.printf("GetFile.markForDeletion: Marked %s for deletionll\n", filePath);
+			} catch (IOException e) {
+				System.err.printf(
+						"GetFile.markForDeletion: Refused to mark %s for deletion\n", filePath);
+				e.printStackTrace();
+			}
+		}
+	}
+	
+	/**
+	 * Returns true if a file is marked for deletion and should be deleted with its backup
+	 * @param filePath
+	 */
+	private boolean isFileMarkedForDeletion(String filePath) {
+		File file = new File(filePath);
+		File bak = new File(filePath.concat(".bak"));
+		if (file.exists() && bak.exists()) {
+			// Use a line iterator to avoid loading entire file in memory
+			try (LineIterator it = FileUtils.lineIterator(bak)) {
+				if (!it.hasNext()) {
+					System.err.printf(
+							"GetFile.isFileMarkedForDeletion: File backup empty %s\n", filePath);
+					return false;
+				}
+				String firstLine = it.next();
+				return firstLine.equals(deleteMarker);
+			} catch (IOException e) {
+				System.err.printf(
+						"GetFile.isFileMarkedForDeletion: File not found %s\n", filePath);
+				e.printStackTrace();
+				return false;
+			}
+		}
+		System.err.printf(
+				"GetFile.isFileMarkedForDeletion: File not found %s\n", filePath);
+		return false;
+	}
+	
+	/**
+	 * Recursively delete all empty directories inside dir.
+	 * This is necessary to delete empty directories left after file deletions
+	 * inside a rollback.
+	 * @param directory
+	 */
+	private void deleteEmptyDirs(Path directory) {
+		try {
+			Files.walk(directory)
+			.filter(Files::isDirectory)
+			.sorted((p1, p2) -> p2.getNameCount() - p1.getNameCount()) // Deepest directories first
+			.forEach(dir -> {
+			    try {
+			        if (Files.list(dir).findAny().isEmpty()) {
+			            Files.delete(dir);
+			            System.out.println("GetFile.deleteEmptyDirs: Deleted empty directory: " + dir);
+			        }
+			    } catch (IOException e) {
+			        System.err.println(
+			        		"GetFile.deleteEmptyDirs: Error deleting directory " + dir + ": " + e.getMessage());
+			    }
+			});
+		} catch (IOException e) {
+			System.err.println("GetFile.deleteEmptyDirs: Root directory not found " + directory);
+			e.printStackTrace();
+		}	
+	}
+	
+	/**
 	 * Rollback update to last stored version.
 	 * @return 0 if success and 1 if unable to rollback.
 	 */
@@ -147,6 +242,7 @@ public class GetFile {
 			System.err.println("Getfile.rollback: Unable to get metadata. Not rolling back.");
 			return 1;
 		}
+		int status = 0;
 		// Iterate over the local files to potentially rollback.
         for (java.util.Map.Entry<String, JsonElement> entry : clientMeta.entrySet()) {
 				String file = entry.getKey();
@@ -155,17 +251,26 @@ public class GetFile {
 				File savLoc = new File(filePath);
 				File bakLoc = new File(filePath.concat(".bak"));
 				if (savLoc.exists() && bakLoc.exists()) {
-						FileUtils.delete(savLoc);
-						FileUtils.moveFile(bakLoc, savLoc);
-						System.out.printf(
-								"GetFile.rollback: rolled back %s\n", file);
+						if (isFileMarkedForDeletion(filePath)) {
+							FileUtils.delete(savLoc);
+							FileUtils.delete(bakLoc);
+							System.out.printf(
+									"GetFile.rollback: deleted marked file %s\n", file);
+						} else {
+							FileUtils.delete(savLoc);
+							FileUtils.moveFile(bakLoc, savLoc);
+							System.out.printf(
+									"GetFile.rollback: rolled back %s\n", file);
+						}
 				}
 			} catch (IOException e) {
 				System.err.printf(
 						"GetFile.rollback: Failed to rollback %s\n", filePath);
+				status = 1;
 				e.printStackTrace();
 			}
         }
+        deleteEmptyDirs(Paths.get(clientPath));
         // Rollback the local meta itself
         File clientMetaFile = new File(clientPath.concat(clientMetaName));
         File clientMetaBak = new File(clientMetaFile.getPath().concat(".bak"));
@@ -180,10 +285,11 @@ public class GetFile {
         	}
         } else {
 				System.err.println("GetFile.rollback: Failed to rollback local meta");
+				status = 1;
         }
         // Load the client meta into memory
 		this.clientMeta = parseJson(clientMetaFile.getPath());	
-        return 0;
+        return status;
 	}
 	
 	/**
@@ -266,7 +372,6 @@ public class GetFile {
 		JsonObject newFileEntry = new JsonObject();
 		newFileEntry.addProperty("version", "");
 		newFileEntry.addProperty("prompt", String.valueOf(promptByDefault));
-		System.out.println(newFileEntry.toString());
 		clientMeta.add(file, newFileEntry);
 		writeClientMetaState();
 	}
@@ -300,7 +405,6 @@ public class GetFile {
 			return ((JsonObject) meta.get(file))
 				.get(key).toString().replaceAll("\"", "");
 		} catch (NullPointerException e) {
-			e.printStackTrace();
 			System.err.printf(
 					"GetFile.getMetaImpl: %s.%s not found in meta\n", file, key);
 			return "";
@@ -403,7 +507,9 @@ public class GetFile {
 		return true;  // TODO
 	}
 	
+	private boolean updatesAvailable;  // New file versions available
 	private boolean promptByDefault = false;  // Should prompt to update a file
+	private final String deleteMarker = "GetFile: File marked for deletion in rollback. DO NOT MODIFY";
 	// Names of metadata files
 	private final String clientMetaName = "getfile.json";
 	private final String serverMetaName = "meta.json";
