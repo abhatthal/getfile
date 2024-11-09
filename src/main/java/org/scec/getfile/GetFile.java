@@ -27,6 +27,13 @@ import java.io.InputStream;
 import java.io.InputStreamReader;
 
 // TODO: Move download functions into DownloadUtil class
+
+/** DeleteFile
+ * 		markForDeletion
+ * 		isFileMarkedForDeletion
+ * 		deleteEmptyDirs
+ */
+
 // TODO: Create a DownloadPrompt class with corresponding logic
 // TODO: Set up modules to make utility classes private outside JAR
 
