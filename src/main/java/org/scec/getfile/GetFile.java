@@ -27,10 +27,11 @@ import java.io.InputStream;
 import java.io.InputStreamReader;
 
 // TODO: Move download functions into DownloadUtil class
+// TODO: Update traces using Java lang.reflect.Method instead of hardcoded
 
-/** DeleteFile
+/** DeleteFile -- bool promptDelete for use in shouldDelete
  * 		markForDeletion
- * 		isFileMarkedForDeletion
+ * 		shouldDelete
  * 		deleteEmptyDirs
  */
 
@@ -77,6 +78,7 @@ public class GetFile {
 				this.updatesAvailable = false;
 			}
 			this.serverMeta = parseJson(cachedServerMetaFile.getPath());
+			backup();  // Initial state for rollback
 		} catch (IOException e) {
 			System.err.println("GetFile.GetFile: IOException reading cache");
 			this.serverMeta = null;
@@ -88,7 +90,6 @@ public class GetFile {
 	/**
 	 * Update all local files using new server files.
 	 * This will force an update regardless of if there are any changes.
-	 * Will also overwrite any backups.
 	 * @return 0 if success and 1 if any failure
 	 */
 	public int updateAll() {
@@ -101,49 +102,96 @@ public class GetFile {
 			return 1;
 		}
 		int status = 0;  // Returns 0 if no errors
-		// Backup local file metadata prior to updating.
-		backupFile(clientPath.concat(clientMetaName));
 		// Iterate over the files on the server
         for (java.util.Map.Entry<String, JsonElement> entry : serverMeta.entrySet()) {
             String file = entry.getKey();
-            String serverVersion = getServerMeta(file, "version");
-            String clientVersion = getClientMeta(file, "version");
-			String downloadPath = clientPath.concat(getServerMeta(file, "path"));
-            // Create the file entry if it doesn't already exist
-            if (clientVersion.equals("")) {
-            	newClientEntry(file);
-            	// Delete new file on rollback since there's no version previously.
-            	markForDeletion(downloadPath);
-            	
-            } else {
-            	backupFile(downloadPath);
-            }
-			// Only download files where versions don't match.
-            if (!clientVersion.equals(serverVersion)) {
-            	System.out.printf("GetFile.updateAll: Update %s %s => %s\n",
-            			file, clientVersion, serverVersion);
-            	String shouldPrompt = getClientMeta(file, "prompt");
-            	if (shouldPrompt.equals("")) {
-            		shouldPrompt = String.valueOf(promptByDefault);
-            	}
-            	if ((shouldPrompt.equals("true") && promptDownload()) ||
-            			shouldPrompt.equals("false")) {
-            		// Download and validate the new file from the server
-            		downloadFile(serverPath.concat(getServerMeta(file, "path")),
-            				downloadPath, /*retries=*/3);
-            		// Update the client meta version accordingly
-            		setClientMeta(file, "version", serverVersion);
-            	} else {
-            		System.err.printf(
-            				"GetFile.updateAll: Invalid prompt \"%s\". " +
-            				"Skip update for file \"%s\"\n",
-            				shouldPrompt, file);
-            		status = 1;
-            	}
+            if (updateImpl(file) == 1) {
+            	status = 1;
             }
         }
         updatesAvailable = false;
 		return status;
+	}
+	
+	/**
+	 * Backups up all files and metadata. Rollback invocation will return to this state.
+	 * If not manually invoked. First backup occurs at class construction.
+	 */
+	public void backup() {
+		backupFile(clientPath.concat(clientMetaName));
+        for (java.util.Map.Entry<String, JsonElement> entry : clientMeta.entrySet()) {
+        	String file = entry.getKey();
+			String filePath = clientPath.concat(getServerMeta(file, "path"));
+			backupFile(filePath);
+        }
+	}
+	
+	/**
+	 * Updates a specific file. If a new update is available, backs up previous.
+	 * @param file			Name of key corresponding to file to try downloading
+	 * @return				0 if success and 1 if any failure
+	 */
+	public int updateFile(String file) {
+		if (!updatesAvailable) {
+			System.err.println("GetFile.updateFile: Refusing to update file. No new changes.");
+			return 1;
+		}
+		if (clientMeta == null || serverMeta == null) {
+			System.err.println("GetFile.updateFile: Unable to get metadata. Not updating files.");
+			return 1;
+		}
+		String serverVersion = getServerMeta(file, "version");
+		String clientVersion = getClientMeta(file, "version");
+		if (clientVersion.equals(serverVersion)) {
+			System.err.println("GetFile.updateFile: File is already up to date.");
+			return 1;
+		}
+		return updateImpl(file);
+	}
+	
+	/**
+	 * Shared implementation for updating files. Used in updateFile and updateAll.
+	 * This only updates the individual file and backs up any existing file
+	 * @param file			Name of key corresponding to file to try downloading
+	 * @return				0 if success and 1 if any failure
+	 */
+	private int updateImpl(String file) {
+		int status = 0;
+		String serverVersion = getServerMeta(file, "version");
+		String clientVersion = getClientMeta(file, "version");
+		String downloadPath = clientPath.concat(getServerMeta(file, "path"));
+		// Create the file entry if it doesn't already exist
+		if (clientVersion.equals("")) {
+			newClientEntry(file);
+			// Delete new file on rollback since there's no version previously.
+			markForDeletion(downloadPath);
+			
+		}
+		// Only download files where versions don't match.
+		if (!clientVersion.equals(serverVersion)) {
+			System.out.printf("GetFile.updateAll: Update %s %s => %s\n",
+					file, clientVersion, serverVersion);
+			String shouldPrompt = getClientMeta(file, "prompt");
+			if (shouldPrompt.equals("")) {
+				shouldPrompt = String.valueOf(promptByDefault);
+			}
+			if ((shouldPrompt.equals("true") && promptDownload()) ||
+					shouldPrompt.equals("false")) {
+				// Download and validate the new file from the server
+				downloadFile(serverPath.concat(getServerMeta(file, "path")),
+						downloadPath, /*retries=*/3);
+				// Update the client meta version accordingly
+				setClientMeta(file, "version", serverVersion);
+			} else {
+				System.err.printf(
+						"GetFile.updateAll: Invalid prompt \"%s\". " +
+						"Skip update for file \"%s\"\n",
+						shouldPrompt, file);
+				status = 1;
+			}
+		}
+		return status;
+		
 	}
 	
 	/**
@@ -152,8 +200,12 @@ public class GetFile {
 	 */
 	private void backupFile(String filePath) {
 		File file = new File(filePath);
+		File bak = new File(filePath.concat(".bak"));
 		if (file.exists()) {
 			try {
+				if (bak.exists()) {
+					FileUtils.delete(bak);
+				}
 				FileUtils.copyFile(file, new File(filePath.concat(".bak")));
 			} catch (IOException e) {
 				System.err.printf(
@@ -187,7 +239,7 @@ public class GetFile {
 	 * Returns true if a file is marked for deletion and should be deleted with its backup
 	 * @param filePath
 	 */
-	private boolean isFileMarkedForDeletion(String filePath) {
+	private boolean shouldDelete(String filePath) {
 		File file = new File(filePath);
 		File bak = new File(filePath.concat(".bak"));
 		if (file.exists() && bak.exists()) {
@@ -195,20 +247,20 @@ public class GetFile {
 			try (LineIterator it = FileUtils.lineIterator(bak)) {
 				if (!it.hasNext()) {
 					System.err.printf(
-							"GetFile.isFileMarkedForDeletion: File backup empty %s\n", filePath);
+							"GetFile.shouldDelete: File backup empty %s\n", filePath);
 					return false;
 				}
 				String firstLine = it.next();
 				return firstLine.equals(deleteMarker);
 			} catch (IOException e) {
 				System.err.printf(
-						"GetFile.isFileMarkedForDeletion: File not found %s\n", filePath);
+						"GetFile.shouldDelete: File not found %s\n", filePath);
 				e.printStackTrace();
 				return false;
 			}
 		}
 		System.err.printf(
-				"GetFile.isFileMarkedForDeletion: File not found %s\n", filePath);
+				"GetFile.shouldDelete: File not found %s\n", filePath);
 		return false;
 	}
 	
@@ -241,7 +293,7 @@ public class GetFile {
 	}
 	
 	/**
-	 * Rollback update to last stored version.
+	 * Rollback to state when GetFile was constructed
 	 * @return 0 if success and 1 if unable to rollback.
 	 */
 	public int rollback() {
@@ -258,7 +310,7 @@ public class GetFile {
 				File savLoc = new File(filePath);
 				File bakLoc = new File(filePath.concat(".bak"));
 				if (savLoc.exists() && bakLoc.exists()) {
-						if (isFileMarkedForDeletion(filePath)) {
+						if (shouldDelete(filePath)) {
 							FileUtils.delete(savLoc);
 							FileUtils.delete(bakLoc);
 							System.out.printf(

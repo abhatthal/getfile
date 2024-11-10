@@ -17,6 +17,9 @@ import org.junit.jupiter.api.Test;
 
 import com.github.tomakehurst.wiremock.WireMockServer;
 import com.github.tomakehurst.wiremock.core.WireMockConfiguration;
+import com.google.gson.Gson;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
 
 /**
  * Test GetFile for correct JSON parsing and server response
@@ -49,6 +52,36 @@ public class GetFileTest {
                 .willReturn(aResponse()
                 		.withStatus(200)
                         .withBodyFile("meta.json.md5")));
+        
+        // Create client resources
+        String clientMetaStr = """
+                {
+                  "file1": {
+                    "version": "v0.1.1",
+                    "prompt": "true"
+                  },
+                  "file2": {
+                    "version": "v1.0.0",
+                    "prompt": "false"
+                  }
+                }
+                """;
+        JsonObject clientMeta = JsonParser.parseString(clientMetaStr).getAsJsonObject();
+        File clientMetaFile = new File(clientRoot+"getfile.json");
+        try {
+			FileUtils.writeStringToFile(clientMetaFile, new Gson().toJson(clientMeta), "UTF-8");
+			FileUtils.writeStringToFile(
+					new File(clientRoot+"data/file1.txt"), "Hi! I'm file1 at v0.1.1.\n", "UTF-8");
+			FileUtils.writeStringToFile(
+					new File(clientRoot+"data/file2.txt"), "Hi! I'm file2 at v1.0.0.\n", "UTF-8");
+			File f3 = new File(clientRoot+"data/file3");
+			if (f3.exists()) {
+				f3.delete();
+			}
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+        
 
 		// Set up GetFile instance after server initialization
 		getfile = new GetFile(/*serverPath=*/"http://localhost:8088/",
@@ -62,13 +95,13 @@ public class GetFileTest {
 		if (wireMockServer != null && wireMockServer.isRunning()) {
 	        wireMockServer.stop();
 	    }
-		File cache = new File(clientRoot+"meta.json");
-		if (cache.exists()) {
-			try {
-				FileUtils.delete(cache);
-			} catch (IOException e) {
-				e.printStackTrace();
+		File client = new File(clientRoot);
+		try {
+			if (client.exists()) {
+				FileUtils.cleanDirectory(client);
 			}
+		} catch (IOException e) {
+			e.printStackTrace();
 		}
 	}
 
@@ -96,7 +129,7 @@ public class GetFileTest {
 	 * @throws IOException 
 	 */
 	@Test
-	public void updateAndRollback() throws IOException {
+	public void updateAll() throws IOException {
 		// Ensure initial state of local meta
 		assertEquals(getfile.getClientMeta("file1", "version"), "v0.1.1");
 		assertEquals(getfile.getClientMeta("file2", "version"), "v1.0.0");
@@ -105,6 +138,7 @@ public class GetFileTest {
 				new File(clientRoot+"data/file2.txt"), "utf-8"),
 				"Hi! I'm file2 at v1.0.0.\n");
 		// Update files and meta from server
+		getfile.backup();
 		getfile.updateAll();
 		// Local meta should be updated
 		assertEquals(getfile.getClientMeta("file1", "version"), "v0.1.1");
@@ -129,7 +163,7 @@ public class GetFileTest {
 	 * @throws IOException
 	 */
 	@Test
-	public void multipleUpdateAndRollback() throws IOException {
+	public void multipleUpdateAll() throws IOException {
 		// Ensure initial state of local meta
 		assertEquals(getfile.getClientMeta("file1", "version"), "v0.1.1");
 		assertEquals(getfile.getClientMeta("file2", "version"), "v1.0.0");
@@ -138,6 +172,7 @@ public class GetFileTest {
 				new File(clientRoot+"data/file2.txt"), "utf-8"),
 				"Hi! I'm file2 at v1.0.0.\n");
 		// Update files and meta from server
+		getfile.backup();
 		getfile.updateAll();
 		// Local meta should be updated
 		assertEquals(getfile.getClientMeta("file1", "version"), "v0.1.1");
@@ -210,6 +245,83 @@ public class GetFileTest {
 		// Rollbacks don't delete folders created for new files
 		assertFalse(new File(clientRoot+"data/file3").exists());
 		assertFalse(new File(clientRoot+"data/file3/file3.txt").exists());
+	}
+	
+	/**
+	 * Upload just one file at a time and see only that file rolled back
+	 * @throws IOException
+	 */
+	@Test
+	public void updateIndividualFiles() throws IOException {
+		// Just update file3
+		assertEquals(getfile.getClientMeta("file1", "version"), "v0.1.1");
+		assertEquals(getfile.getClientMeta("file2", "version"), "v1.0.0");
+		assertEquals(getfile.getClientMeta("file3", "version"), "");
+		getfile.backup();
+		getfile.updateFile("file3");
+		// file3 is updated but file2 is still outdated.
+		assertEquals(getfile.getClientMeta("file1", "version"), "v0.1.1");
+		assertEquals(getfile.getClientMeta("file2", "version"), "v1.0.0");
+		assertEquals(getfile.getClientMeta("file3", "version"), "v0.1.2");
+		getfile.rollback();
+		assertEquals(getfile.getClientMeta("file1", "version"), "v0.1.1");
+		assertEquals(getfile.getClientMeta("file2", "version"), "v1.0.0");
+		assertEquals(getfile.getClientMeta("file3", "version"), "");
+		// Update file3 again
+		assertEquals(getfile.getClientMeta("file1", "version"), "v0.1.1");
+		assertEquals(getfile.getClientMeta("file2", "version"), "v1.0.0");
+		assertEquals(getfile.getClientMeta("file3", "version"), "");
+		getfile.backup();
+		getfile.updateFile("file3");
+		// file3 is updated but file2 is still outdated.
+		assertEquals(getfile.getClientMeta("file1", "version"), "v0.1.1");
+		assertEquals(getfile.getClientMeta("file2", "version"), "v1.0.0");
+		assertEquals(getfile.getClientMeta("file3", "version"), "v0.1.2");
+		getfile.rollback();
+		assertEquals(getfile.getClientMeta("file1", "version"), "v0.1.1");
+		assertEquals(getfile.getClientMeta("file2", "version"), "v1.0.0");
+		assertEquals(getfile.getClientMeta("file3", "version"), "");
+		// Update file2
+		assertEquals(getfile.getClientMeta("file1", "version"), "v0.1.1");
+		assertEquals(getfile.getClientMeta("file2", "version"), "v1.0.0");
+		assertEquals(getfile.getClientMeta("file3", "version"), "");
+		getfile.backup();
+		getfile.updateFile("file2");
+		// file3 not downloaded and file2 is updated
+		assertEquals(getfile.getClientMeta("file1", "version"), "v0.1.1");
+		assertEquals(getfile.getClientMeta("file2", "version"), "v1.3.1");
+		assertEquals(getfile.getClientMeta("file3", "version"), "");
+		getfile.rollback();
+		assertEquals(getfile.getClientMeta("file1", "version"), "v0.1.1");
+		assertEquals(getfile.getClientMeta("file2", "version"), "v1.0.0");
+		assertEquals(getfile.getClientMeta("file3", "version"), "");
+		// Update both file1 and file2
+		getfile.backup();
+		getfile.updateFile("file1");
+		getfile.updateFile("file2");
+		assertEquals(getfile.getClientMeta("file1", "version"), "v0.1.1");
+		assertEquals(getfile.getClientMeta("file2", "version"), "v1.3.1");
+		getfile.rollback();
+		assertEquals(getfile.getClientMeta("file1", "version"), "v0.1.1");
+		assertEquals(getfile.getClientMeta("file2", "version"), "v1.0.0");
+		// Update both file2 and file3
+		getfile.backup();
+		getfile.updateFile("file2");
+		getfile.updateFile("file3");
+		assertEquals(getfile.getClientMeta("file2", "version"), "v1.3.1");
+		assertEquals(getfile.getClientMeta("file3", "version"), "v0.1.2");
+		getfile.rollback();
+		assertEquals(getfile.getClientMeta("file2", "version"), "v1.0.0");
+		assertEquals(getfile.getClientMeta("file3", "version"), "");
+		// Update both and rollback to just file2 updated
+		getfile.updateFile("file2");
+		getfile.backup();
+		getfile.updateFile("file3");
+		assertEquals(getfile.getClientMeta("file2", "version"), "v1.3.1");
+		assertEquals(getfile.getClientMeta("file3", "version"), "v0.1.2");
+		getfile.rollback();
+		assertEquals(getfile.getClientMeta("file2", "version"), "v1.3.1");
+		assertEquals(getfile.getClientMeta("file3", "version"), "");
 	}
 	
 	/** TODO: Implement these tests
