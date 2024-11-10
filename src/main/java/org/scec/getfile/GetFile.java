@@ -71,18 +71,15 @@ public class GetFile {
 				}
 				FileUtils.moveFile(freshServerMetaFile, cachedServerMetaFile);
 				System.out.println("GetFile.GetFile: New files are available to download.");
-				this.updatesAvailable = true;
 			} else {
 				FileUtils.delete(freshServerMetaFile);
 				System.out.println("GetFile.GetFile: No new files found.");
-				this.updatesAvailable = false;
 			}
 			this.serverMeta = parseJson(cachedServerMetaFile.getPath());
 			backup();  // Initial state for rollback
 		} catch (IOException e) {
 			System.err.println("GetFile.GetFile: IOException reading cache");
 			this.serverMeta = null;
-			this.updatesAvailable = false;
 			e.printStackTrace();
 		}
 	}
@@ -93,10 +90,6 @@ public class GetFile {
 	 * @return 0 if success and 1 if any failure
 	 */
 	public int updateAll() {
-		if (!updatesAvailable) {
-			System.err.println("GetFile.updateAll: Refusing to update files. No new changes.");
-			return 1;
-		}
 		if (clientMeta == null || serverMeta == null) {
 			System.err.println("GetFile.updateAll: Unable to get metadata. Not updating files.");
 			return 1;
@@ -105,11 +98,10 @@ public class GetFile {
 		// Iterate over the files on the server
         for (java.util.Map.Entry<String, JsonElement> entry : serverMeta.entrySet()) {
             String file = entry.getKey();
-            if (updateImpl(file) == 1) {
+            if (updateFile(file) == 1) {
             	status = 1;
             }
         }
-        updatesAvailable = false;
 		return status;
 	}
 	
@@ -132,10 +124,6 @@ public class GetFile {
 	 * @return				0 if success and 1 if any failure
 	 */
 	public int updateFile(String file) {
-		if (!updatesAvailable) {
-			System.err.println("GetFile.updateFile: Refusing to update file. No new changes.");
-			return 1;
-		}
 		if (clientMeta == null || serverMeta == null) {
 			System.err.println("GetFile.updateFile: Unable to get metadata. Not updating files.");
 			return 1;
@@ -144,21 +132,9 @@ public class GetFile {
 		String clientVersion = getClientMeta(file, "version");
 		if (clientVersion.equals(serverVersion)) {
 			System.err.println("GetFile.updateFile: File is already up to date.");
-			return 1;
+			// Not updating when already up to date isn't considered a failure
+			return 0;
 		}
-		return updateImpl(file);
-	}
-	
-	/**
-	 * Shared implementation for updating files. Used in updateFile and updateAll.
-	 * This only updates the individual file and backs up any existing file
-	 * @param file			Name of key corresponding to file to try downloading
-	 * @return				0 if success and 1 if any failure
-	 */
-	private int updateImpl(String file) {
-		int status = 0;
-		String serverVersion = getServerMeta(file, "version");
-		String clientVersion = getClientMeta(file, "version");
 		String downloadPath = clientPath.concat(getServerMeta(file, "path"));
 		// Create the file entry if it doesn't already exist
 		if (clientVersion.equals("")) {
@@ -167,31 +143,28 @@ public class GetFile {
 			markForDeletion(downloadPath);
 			
 		}
-		// Only download files where versions don't match.
-		if (!clientVersion.equals(serverVersion)) {
-			System.out.printf("GetFile.updateAll: Update %s %s => %s\n",
-					file, clientVersion, serverVersion);
-			String shouldPrompt = getClientMeta(file, "prompt");
-			if (shouldPrompt.equals("")) {
-				shouldPrompt = String.valueOf(promptByDefault);
-			}
-			if ((shouldPrompt.equals("true") && promptDownload()) ||
-					shouldPrompt.equals("false")) {
-				// Download and validate the new file from the server
-				downloadFile(serverPath.concat(getServerMeta(file, "path")),
-						downloadPath, /*retries=*/3);
-				// Update the client meta version accordingly
-				setClientMeta(file, "version", serverVersion);
-			} else {
-				System.err.printf(
-						"GetFile.updateAll: Invalid prompt \"%s\". " +
-						"Skip update for file \"%s\"\n",
-						shouldPrompt, file);
-				status = 1;
-			}
+		int status = 0;
+		System.out.printf("GetFile.updateAll: Update %s %s => %s\n",
+				file, clientVersion, serverVersion);
+		String shouldPrompt = getClientMeta(file, "prompt");
+		if (shouldPrompt.equals("")) {
+			shouldPrompt = String.valueOf(promptByDefault);
+		}
+		if ((shouldPrompt.equals("true") && promptDownload()) ||
+				shouldPrompt.equals("false")) {
+			// Download and validate the new file from the server
+			downloadFile(serverPath.concat(getServerMeta(file, "path")),
+					downloadPath, /*retries=*/3);
+			// Update the client meta version accordingly
+			setClientMeta(file, "version", serverVersion);
+		} else {
+			System.err.printf(
+					"GetFile.updateAll: Invalid prompt \"%s\". " +
+					"Skip update for file \"%s\"\n",
+					shouldPrompt, file);
+			status = 1;
 		}
 		return status;
-		
 	}
 	
 	/**
@@ -566,7 +539,6 @@ public class GetFile {
 		return true;  // TODO
 	}
 	
-	private boolean updatesAvailable;  // New file versions available
 	private boolean promptByDefault = false;  // Should prompt to update a file
 	private final String deleteMarker = "GetFile: File marked for deletion in rollback. DO NOT MODIFY";
 	// Names of metadata files
