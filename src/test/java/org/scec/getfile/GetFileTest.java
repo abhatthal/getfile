@@ -27,6 +27,7 @@ import com.google.gson.JsonParser;
 public class GetFileTest {
 
 	private GetFile getfile;
+	private MetadataHandler meta;
 	private WireMockServer wireMockServer;
 	private final String clientRoot = "src/test/resources/client_root/";
 
@@ -86,6 +87,7 @@ public class GetFileTest {
 		// Set up GetFile instance after server initialization
 		getfile = new GetFile(/*serverPath=*/"http://localhost:8088/",
 				/*clientPath=*/clientRoot);
+		meta = MetadataHandler.getInstance();
 
 	}
 	
@@ -110,9 +112,9 @@ public class GetFileTest {
 	 */
 	@Test
 	public void latestVersion() {
-		assertEquals(getfile.getServerMeta("file1", "version"), "v0.1.1");
-		assertEquals(getfile.getServerMeta("file2", "version"), "v1.3.1");
-		assertEquals(getfile.getServerMeta("file3", "version"), "v0.1.2");
+		assertEquals(meta.getServerMeta("file1", "version"), "v0.1.1");
+		assertEquals(meta.getServerMeta("file2", "version"), "v1.3.1");
+		assertEquals(meta.getServerMeta("file3", "version"), "v0.1.2");
 	}
 
 	/**
@@ -120,8 +122,8 @@ public class GetFileTest {
 	 */
 	@Test
 	public void currentVersion() {
-		assertEquals(getfile.getClientMeta("file1", "version"), "v0.1.1");
-		assertEquals(getfile.getClientMeta("file2", "version"), "v1.0.0");
+		assertEquals(meta.getClientMeta("file1", "version"), "v0.1.1");
+		assertEquals(meta.getClientMeta("file2", "version"), "v1.0.0");
 	}
 	
 	/**
@@ -131,8 +133,8 @@ public class GetFileTest {
 	@Test
 	public void updateAll() throws IOException {
 		// Ensure initial state of local meta
-		assertEquals(getfile.getClientMeta("file1", "version"), "v0.1.1");
-		assertEquals(getfile.getClientMeta("file2", "version"), "v1.0.0");
+		assertEquals(meta.getClientMeta("file1", "version"), "v0.1.1");
+		assertEquals(meta.getClientMeta("file2", "version"), "v1.0.0");
 		// Initial state of file data
 		assertEquals(FileUtils.readFileToString(
 				new File(clientRoot+"data/file2.txt"), "utf-8"),
@@ -141,8 +143,8 @@ public class GetFileTest {
 		getfile.backup();
 		getfile.updateAll();
 		// Local meta should be updated
-		assertEquals(getfile.getClientMeta("file1", "version"), "v0.1.1");
-		assertEquals(getfile.getClientMeta("file2", "version"), "v1.3.1");
+		assertEquals(meta.getClientMeta("file1", "version"), "v0.1.1");
+		assertEquals(meta.getClientMeta("file2", "version"), "v1.3.1");
 		// Updated file data
 		assertEquals(FileUtils.readFileToString(
 				new File(clientRoot+"data/file2.txt"), "utf-8"),
@@ -150,8 +152,8 @@ public class GetFileTest {
 		// Rollback to previous state
 		getfile.rollback();
 		// Local meta should be back at initial state
-		assertEquals(getfile.getClientMeta("file1", "version"), "v0.1.1");
-		assertEquals(getfile.getClientMeta("file2", "version"), "v1.0.0");
+		assertEquals(meta.getClientMeta("file1", "version"), "v0.1.1");
+		assertEquals(meta.getClientMeta("file2", "version"), "v1.0.0");
 		// also reverted file data to initial state
 		assertEquals(FileUtils.readFileToString(
 				new File(clientRoot+"data/file2.txt"), "utf-8"),
@@ -165,8 +167,8 @@ public class GetFileTest {
 	@Test
 	public void multipleUpdateAll() throws IOException {
 		// Ensure initial state of local meta
-		assertEquals(getfile.getClientMeta("file1", "version"), "v0.1.1");
-		assertEquals(getfile.getClientMeta("file2", "version"), "v1.0.0");
+		assertEquals(meta.getClientMeta("file1", "version"), "v0.1.1");
+		assertEquals(meta.getClientMeta("file2", "version"), "v1.0.0");
 		// Initial state of file data
 		assertEquals(FileUtils.readFileToString(
 				new File(clientRoot+"data/file2.txt"), "utf-8"),
@@ -175,8 +177,8 @@ public class GetFileTest {
 		getfile.backup();
 		getfile.updateAll();
 		// Local meta should be updated
-		assertEquals(getfile.getClientMeta("file1", "version"), "v0.1.1");
-		assertEquals(getfile.getClientMeta("file2", "version"), "v1.3.1");
+		assertEquals(meta.getClientMeta("file1", "version"), "v0.1.1");
+		assertEquals(meta.getClientMeta("file2", "version"), "v1.3.1");
 		// Updated file data
 		assertEquals(FileUtils.readFileToString(
 				new File(clientRoot+"data/file2.txt"), "utf-8"),
@@ -185,16 +187,16 @@ public class GetFileTest {
 		getfile.updateAll();
 		getfile.updateAll();
 		getfile.updateAll();
-		assertEquals(getfile.getClientMeta("file1", "version"), "v0.1.1");
-		assertEquals(getfile.getClientMeta("file2", "version"), "v1.3.1");
+		assertEquals(meta.getClientMeta("file1", "version"), "v0.1.1");
+		assertEquals(meta.getClientMeta("file2", "version"), "v1.3.1");
 		assertEquals(FileUtils.readFileToString(
 				new File(clientRoot+"data/file2.txt"), "utf-8"),
 				"Hi! I'm file2 at v1.3.1.\n");
 		// Rollback to previous state
 		getfile.rollback();
 		// Local meta should be back at initial state
-		assertEquals(getfile.getClientMeta("file1", "version"), "v0.1.1");
-		assertEquals(getfile.getClientMeta("file2", "version"), "v1.0.0");
+		assertEquals(meta.getClientMeta("file1", "version"), "v0.1.1");
+		assertEquals(meta.getClientMeta("file2", "version"), "v1.0.0");
 		// also reverted file data to initial state
 		assertEquals(FileUtils.readFileToString(
 				new File(clientRoot+"data/file2.txt"), "utf-8"),
@@ -208,8 +210,8 @@ public class GetFileTest {
 	 */
 	@Test
 	public void justRollback() throws IOException {
-		assertEquals(getfile.getClientMeta("file1", "version"), "v0.1.1");
-		assertEquals(getfile.getClientMeta("file2", "version"), "v1.0.0");
+		assertEquals(meta.getClientMeta("file1", "version"), "v0.1.1");
+		assertEquals(meta.getClientMeta("file2", "version"), "v1.0.0");
 		assertEquals(FileUtils.readFileToString(
 				new File(clientRoot+"data/file2.txt"), "utf-8"),
 				"Hi! I'm file2 at v1.0.0.\n");
@@ -217,8 +219,8 @@ public class GetFileTest {
 		getfile.rollback();
 		getfile.rollback();
 		getfile.rollback();
-		assertEquals(getfile.getClientMeta("file1", "version"), "v0.1.1");
-		assertEquals(getfile.getClientMeta("file2", "version"), "v1.0.0");
+		assertEquals(meta.getClientMeta("file1", "version"), "v0.1.1");
+		assertEquals(meta.getClientMeta("file2", "version"), "v1.0.0");
 		assertEquals(FileUtils.readFileToString(
 				new File(clientRoot+"data/file2.txt"), "utf-8"),
 				"Hi! I'm file2 at v1.0.0.\n");
@@ -230,12 +232,12 @@ public class GetFileTest {
 	 */
 	@Test
 	public void newFile() throws IOException {
-		assertEquals(getfile.getClientMeta("file3", "version"), "");
-		assertEquals(getfile.getServerMeta("file3", "version"), "v0.1.2");
+		assertEquals(meta.getClientMeta("file3", "version"), "");
+		assertEquals(meta.getServerMeta("file3", "version"), "v0.1.2");
 		assertFalse(new File(clientRoot+"data/file3").exists());
 		getfile.updateAll();
-		assertEquals(getfile.getClientMeta("file3", "version"), "v0.1.2");
-		assertEquals(getfile.getServerMeta("file3", "version"), "v0.1.2");
+		assertEquals(meta.getClientMeta("file3", "version"), "v0.1.2");
+		assertEquals(meta.getServerMeta("file3", "version"), "v0.1.2");
 		assertTrue(new File(clientRoot+"data/file3").exists());
 		assertTrue(new File(clientRoot+"data/file3/file3.txt").exists());
 		assertEquals(FileUtils.readFileToString(
@@ -254,74 +256,74 @@ public class GetFileTest {
 	@Test
 	public void updateIndividualFiles() throws IOException {
 		// Just update file3
-		assertEquals(getfile.getClientMeta("file1", "version"), "v0.1.1");
-		assertEquals(getfile.getClientMeta("file2", "version"), "v1.0.0");
-		assertEquals(getfile.getClientMeta("file3", "version"), "");
+		assertEquals(meta.getClientMeta("file1", "version"), "v0.1.1");
+		assertEquals(meta.getClientMeta("file2", "version"), "v1.0.0");
+		assertEquals(meta.getClientMeta("file3", "version"), "");
 		getfile.backup();
 		getfile.updateFile("file3");
 		// file3 is updated but file2 is still outdated.
-		assertEquals(getfile.getClientMeta("file1", "version"), "v0.1.1");
-		assertEquals(getfile.getClientMeta("file2", "version"), "v1.0.0");
-		assertEquals(getfile.getClientMeta("file3", "version"), "v0.1.2");
+		assertEquals(meta.getClientMeta("file1", "version"), "v0.1.1");
+		assertEquals(meta.getClientMeta("file2", "version"), "v1.0.0");
+		assertEquals(meta.getClientMeta("file3", "version"), "v0.1.2");
 		getfile.rollback();
-		assertEquals(getfile.getClientMeta("file1", "version"), "v0.1.1");
-		assertEquals(getfile.getClientMeta("file2", "version"), "v1.0.0");
-		assertEquals(getfile.getClientMeta("file3", "version"), "");
+		assertEquals(meta.getClientMeta("file1", "version"), "v0.1.1");
+		assertEquals(meta.getClientMeta("file2", "version"), "v1.0.0");
+		assertEquals(meta.getClientMeta("file3", "version"), "");
 		// Update file3 again
-		assertEquals(getfile.getClientMeta("file1", "version"), "v0.1.1");
-		assertEquals(getfile.getClientMeta("file2", "version"), "v1.0.0");
-		assertEquals(getfile.getClientMeta("file3", "version"), "");
+		assertEquals(meta.getClientMeta("file1", "version"), "v0.1.1");
+		assertEquals(meta.getClientMeta("file2", "version"), "v1.0.0");
+		assertEquals(meta.getClientMeta("file3", "version"), "");
 		getfile.backup();
 		getfile.updateFile("file3");
 		// file3 is updated but file2 is still outdated.
-		assertEquals(getfile.getClientMeta("file1", "version"), "v0.1.1");
-		assertEquals(getfile.getClientMeta("file2", "version"), "v1.0.0");
-		assertEquals(getfile.getClientMeta("file3", "version"), "v0.1.2");
+		assertEquals(meta.getClientMeta("file1", "version"), "v0.1.1");
+		assertEquals(meta.getClientMeta("file2", "version"), "v1.0.0");
+		assertEquals(meta.getClientMeta("file3", "version"), "v0.1.2");
 		getfile.rollback();
-		assertEquals(getfile.getClientMeta("file1", "version"), "v0.1.1");
-		assertEquals(getfile.getClientMeta("file2", "version"), "v1.0.0");
-		assertEquals(getfile.getClientMeta("file3", "version"), "");
+		assertEquals(meta.getClientMeta("file1", "version"), "v0.1.1");
+		assertEquals(meta.getClientMeta("file2", "version"), "v1.0.0");
+		assertEquals(meta.getClientMeta("file3", "version"), "");
 		// Update file2
-		assertEquals(getfile.getClientMeta("file1", "version"), "v0.1.1");
-		assertEquals(getfile.getClientMeta("file2", "version"), "v1.0.0");
-		assertEquals(getfile.getClientMeta("file3", "version"), "");
+		assertEquals(meta.getClientMeta("file1", "version"), "v0.1.1");
+		assertEquals(meta.getClientMeta("file2", "version"), "v1.0.0");
+		assertEquals(meta.getClientMeta("file3", "version"), "");
 		getfile.backup();
 		getfile.updateFile("file2");
 		// file3 not downloaded and file2 is updated
-		assertEquals(getfile.getClientMeta("file1", "version"), "v0.1.1");
-		assertEquals(getfile.getClientMeta("file2", "version"), "v1.3.1");
-		assertEquals(getfile.getClientMeta("file3", "version"), "");
+		assertEquals(meta.getClientMeta("file1", "version"), "v0.1.1");
+		assertEquals(meta.getClientMeta("file2", "version"), "v1.3.1");
+		assertEquals(meta.getClientMeta("file3", "version"), "");
 		getfile.rollback();
-		assertEquals(getfile.getClientMeta("file1", "version"), "v0.1.1");
-		assertEquals(getfile.getClientMeta("file2", "version"), "v1.0.0");
-		assertEquals(getfile.getClientMeta("file3", "version"), "");
+		assertEquals(meta.getClientMeta("file1", "version"), "v0.1.1");
+		assertEquals(meta.getClientMeta("file2", "version"), "v1.0.0");
+		assertEquals(meta.getClientMeta("file3", "version"), "");
 		// Update both file1 and file2
 		getfile.backup();
 		getfile.updateFile("file1");
 		getfile.updateFile("file2");
-		assertEquals(getfile.getClientMeta("file1", "version"), "v0.1.1");
-		assertEquals(getfile.getClientMeta("file2", "version"), "v1.3.1");
+		assertEquals(meta.getClientMeta("file1", "version"), "v0.1.1");
+		assertEquals(meta.getClientMeta("file2", "version"), "v1.3.1");
 		getfile.rollback();
-		assertEquals(getfile.getClientMeta("file1", "version"), "v0.1.1");
-		assertEquals(getfile.getClientMeta("file2", "version"), "v1.0.0");
+		assertEquals(meta.getClientMeta("file1", "version"), "v0.1.1");
+		assertEquals(meta.getClientMeta("file2", "version"), "v1.0.0");
 		// Update both file2 and file3
 		getfile.backup();
 		getfile.updateFile("file2");
 		getfile.updateFile("file3");
-		assertEquals(getfile.getClientMeta("file2", "version"), "v1.3.1");
-		assertEquals(getfile.getClientMeta("file3", "version"), "v0.1.2");
+		assertEquals(meta.getClientMeta("file2", "version"), "v1.3.1");
+		assertEquals(meta.getClientMeta("file3", "version"), "v0.1.2");
 		getfile.rollback();
-		assertEquals(getfile.getClientMeta("file2", "version"), "v1.0.0");
-		assertEquals(getfile.getClientMeta("file3", "version"), "");
+		assertEquals(meta.getClientMeta("file2", "version"), "v1.0.0");
+		assertEquals(meta.getClientMeta("file3", "version"), "");
 		// Update both and rollback to just file2 updated
 		getfile.updateFile("file2");
 		getfile.backup();
 		getfile.updateFile("file3");
-		assertEquals(getfile.getClientMeta("file2", "version"), "v1.3.1");
-		assertEquals(getfile.getClientMeta("file3", "version"), "v0.1.2");
+		assertEquals(meta.getClientMeta("file2", "version"), "v1.3.1");
+		assertEquals(meta.getClientMeta("file3", "version"), "v0.1.2");
 		getfile.rollback();
-		assertEquals(getfile.getClientMeta("file2", "version"), "v1.3.1");
-		assertEquals(getfile.getClientMeta("file3", "version"), "");
+		assertEquals(meta.getClientMeta("file2", "version"), "v1.3.1");
+		assertEquals(meta.getClientMeta("file3", "version"), "");
 	}
 	
 	/** TODO: Implement these tests
