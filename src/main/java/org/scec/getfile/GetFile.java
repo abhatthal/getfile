@@ -5,9 +5,7 @@ import com.google.gson.GsonBuilder;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
-import org.apache.commons.codec.digest.DigestUtils;
 import org.apache.commons.io.FileUtils;
-import org.apache.commons.io.IOUtils;
 import org.apache.commons.io.LineIterator;
 
 import java.io.File;
@@ -16,26 +14,14 @@ import java.io.FileNotFoundException;
 import java.io.Reader;
 import java.io.FileWriter;
 import java.io.UnsupportedEncodingException;
-import java.net.URI;
-import java.net.URISyntaxException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.io.IOException;
-import java.io.InputStream;
 import java.io.InputStreamReader;
 
-// TODO: Move download functions into DownloadUtil class
 // TODO: Update traces using Java lang.reflect.Method instead of hardcoded
-
-/** DeleteFile -- bool promptDelete for use in shouldDelete
- * 		markForDeletion
- * 		shouldDelete
- * 		deleteEmptyDirs
- */
-
-// TODO: Create a DownloadPrompt class with corresponding logic
 // TODO: Set up modules to make utility classes private outside JAR
 
 /**
@@ -58,7 +44,7 @@ public class GetFile {
 		// Get a fresh copy of the latest file versions
 		final File cachedServerMetaFile = new File(clientPath.concat(serverMetaName));
 		final File freshServerMetaFile = new File(clientPath.concat("."+serverMetaName));
-		downloadFile(serverPath.concat(serverMetaName),
+		Downloader.downloadFile(serverPath.concat(serverMetaName),
 				freshServerMetaFile.getPath(), /*retries=*/3);
 		try {
 			// Proceed with download if no cache hit
@@ -152,7 +138,7 @@ public class GetFile {
 		if ((shouldPrompt.equals("true") && promptDownload()) ||
 				shouldPrompt.equals("false")) {
 			// Download and validate the new file from the server
-			downloadFile(serverPath.concat(getServerMeta(file, "path")),
+			Downloader.downloadFile(serverPath.concat(getServerMeta(file, "path")),
 					downloadPath, /*retries=*/3);
 			// Update the client meta version accordingly
 			setClientMeta(file, "version", serverVersion);
@@ -166,6 +152,11 @@ public class GetFile {
 		return status;
 	}
 	
+	private boolean promptDownload() {
+		// TODO: Delete this after completing Prompter class
+		return false;
+	}
+
 	/**
 	 * Backs up file if it exists
 	 * @param filePath
@@ -400,7 +391,7 @@ public class GetFile {
 	private void newClientEntry(String file) {
 		JsonObject newFileEntry = new JsonObject();
 		newFileEntry.addProperty("version", "");
-		newFileEntry.addProperty("prompt", String.valueOf(promptByDefault));
+//		newFileEntry.addProperty("prompt", String.valueOf(promptByDefault));
 		clientMeta.add(file, newFileEntry);
 		writeClientMetaState();
 	}
@@ -440,102 +431,6 @@ public class GetFile {
 		}
 	}
 		
-	/**
-	 * Downloads a file with MD5 validation
-	 * @param fileUrl				URL of file to download
-	 * @param saveLocation			Where the downloaded file should be stored
-	 * @return 0 if success and 1 if any failure
-	 */
-	private int downloadFile(String fileUrl, String saveLocation) {
-		try {
-			File savLoc = new File(saveLocation);
-			// Download the file from the given URL
-			File dwnLoc = new File(saveLocation.concat(".part"));
-			FileUtils.copyURLToFile(new URI(fileUrl).toURL(), dwnLoc);
-			 // Calculate the MD5 checksum of the downloaded file
-			String calculatedMd5 =
-					DigestUtils.md5Hex(Files.newInputStream(dwnLoc.toPath()));
-			if (calculatedMd5.equalsIgnoreCase(getExpectedMd5(fileUrl))) {
-				FileUtils.copyFile(dwnLoc, savLoc);
-				if (dwnLoc.exists()) {
-					dwnLoc.delete();
-				}
-				System.out.printf(
-						"GetFile.downloadFile: downloaded %s\n",	fileUrl);
-				return 0;
-			}
-			if (dwnLoc.exists()) {
-				dwnLoc.delete();
-			}
-			System.err.printf("GetFile.downloadFile: MD5 validation failed: %s\n", fileUrl);
-			return 1;
-		} catch (IOException | URISyntaxException e) {
-			System.err.println("GetFile.downloadFile: Unable to connect to server");
-			File dwnLoc = new File(saveLocation.concat(".part"));
-			if (dwnLoc.exists()) {
-				dwnLoc.delete();
-			}
-			System.err.println(e);
-			return 1;
-		}
-	}
-
-	
-	/**
-	 * Gets the precomputed MD5 checksum for a file at the corresponding file.md5.
-	 * @param fileUrl	URL to file on server to find checksum for
-	 * @return			String of precomputed MD5 from the md5 file on server.
-	 * 					Returns an empty string if not found.
-	 */
-	private String getExpectedMd5(String fileUrl) {
-		try {
-			URI uri = new URI(fileUrl.concat(".md5"));
-			InputStream inputStream = uri.toURL().openStream();
-			return IOUtils.toString(inputStream, StandardCharsets.UTF_8);
-		} catch (URISyntaxException | IOException e) {
-			System.err.printf(
-					"GetFile.getExpectedMd5: Could not find precomputed Md5 checksum for %s\n",
-					fileUrl);
-			System.err.println(e);
-			return "";
-		}
-	}
-
-	
-	/**
-	 * Retry download until it succeeds or `retries` attempts exceeded.
-	 * If retries is not specified, defaults to 1 attempt.
-	 * @param fileUrl				URL of file to download
-	 * @param saveLocation			Where the downloaded file should be stored
-	 * @param retries				Count of retry attempts
-	 * @return						0 if success and 1 if reached n executions
-	 */
-	private int downloadFile(String fileUrl, String saveLocation, int retries) {
-		int status = 1;
-		for (int i = 0; i < retries && status != 0; i++) {
-			status = downloadFile(fileUrl, saveLocation);
-		}
-		return status;
-	}
-
-	
-	/**
-	 * Prompt user with JOptionPane if they want to update to latest version of file
-	 * @return true if we should download the latest version of this file
-	 */
-	private boolean promptDownload() {
-		// In the event of a manual update type, prompt the user prior to download
-		// "Would you like to update `file` version to latestVersion now?"
-		// "Update Now" ,"Later", "Skip this Version"
-
-		// Returns false for Later or Skip options.
-		// If we want to be able to skip versions,
-		// we need to keep a JsonObj of skipped versions per file inside getfile.json
-
-		// I need to manually test the behaviour of promptDownload when
-		// invoked in updateAll.
-		return true;  // TODO
-	}
 	
 	private boolean promptByDefault = false;  // Should prompt to update a file
 	private final String deleteMarker = "GetFile: File marked for deletion in rollback. DO NOT MODIFY";
