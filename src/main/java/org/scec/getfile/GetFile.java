@@ -131,11 +131,12 @@ public class GetFile {
 		int status = 0;
 		System.out.printf("GetFile.updateAll: Update %s %s => %s\n",
 				file, clientVersion, serverVersion);
+		// TODO: Move shouldPrompt logic into Prompter class
 		String shouldPrompt = getClientMeta(file, "prompt");
 		if (shouldPrompt.equals("")) {
 			shouldPrompt = String.valueOf(promptByDefault);
 		}
-		if ((shouldPrompt.equals("true") && promptDownload()) ||
+		if ((shouldPrompt.equals("true") && Prompter.promptDownload(file)) ||
 				shouldPrompt.equals("false")) {
 			// Download and validate the new file from the server
 			Downloader.downloadFile(serverPath.concat(getServerMeta(file, "path")),
@@ -152,11 +153,6 @@ public class GetFile {
 		return status;
 	}
 	
-	private boolean promptDownload() {
-		// TODO: Delete this after completing Prompter class
-		return false;
-	}
-
 	/**
 	 * Backs up file if it exists
 	 * @param filePath
@@ -432,7 +428,7 @@ public class GetFile {
 	}
 		
 	
-	private boolean promptByDefault = false;  // Should prompt to update a file
+	private boolean promptByDefault = false;  // TODO: Transition to using Prompter class
 	private final String deleteMarker = "GetFile: File marked for deletion in rollback. DO NOT MODIFY";
 	// Names of metadata files
 	private final String clientMetaName = "getfile.json";

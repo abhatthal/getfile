@@ -8,9 +8,10 @@ package org.scec.getfile;
 public class Prompter {
 	/**
 	 * Prompt user with JOptionPane if they want to update to latest version of file
+	 * @param file			Name of key corresponding to file to try downloading
 	 * @return true if we should download the latest version of this file
 	 */
-	public boolean promptDownload(String file) {
+	public static boolean promptDownload(String file) {
 		// In the event of a manual update type, prompt the user prior to download
 		// "Would you like to update `file` version to latestVersion now?"
 		// "Update Now" ,"Later", "Skip this Version"
@@ -24,10 +25,14 @@ public class Prompter {
 		return true;  // TODO
 	}
 
-	public boolean shouldPrompt(String file) {
-		return promptByDefault;
-		// TODO: Attempt to read client metadata, else return promptByDefault
+	/** If we should try to prompt user to download this file or just download
+	 * silently in the background.
+	 * @param file			Name of key corresponding to file to try downloading
+	 * @return				true if client metadata or default indicates
+	 */
+	public static boolean shouldPrompt(String file) {
+		return promptByDefault;  // TODO
 	}
 
-	private final boolean promptByDefault = false;
+	private static final boolean promptByDefault = false;
 }

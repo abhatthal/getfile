@@ -38,7 +38,7 @@ public class Downloader {
 	 * Downloads a file with MD5 validation
 	 * @param fileUrl				URL of file to download
 	 * @param saveLocation			Where the downloaded file should be stored
-	 * @return 0 if success and 1 if any failure
+	 * @return						0 if success and 1 if any failure
 	 */
 	public static int downloadFile(String fileUrl, String saveLocation) {
 		try {
