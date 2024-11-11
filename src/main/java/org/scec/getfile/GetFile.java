@@ -76,7 +76,6 @@ public class GetFile {
 				System.out.println("GetFile.GetFile: No new files found.");
 			}
 			this.serverMeta = parseJson(cachedServerMetaFile.getPath());
-			backup();  // Initial state for rollback
 		} catch (IOException e) {
 			System.err.println("GetFile.GetFile: IOException reading cache");
 			this.serverMeta = null;
@@ -107,7 +106,7 @@ public class GetFile {
 	
 	/**
 	 * Backups up all files and metadata. Rollback invocation will return to this state.
-	 * If not manually invoked. First backup occurs at class construction.
+	 * Rollbacks do nothing if no backup exists. Backups persist across GetFile instances.
 	 */
 	public void backup() {
 		backupFile(clientPath.concat(clientMetaName));
@@ -327,7 +326,8 @@ public class GetFile {
 	/**
 	 * Read a JSON file into memory for evaluation
 	 * @param jsonFile		JSON file to parse
-	 * @return				JSON tree interpreted as an object
+	 * @return				JSON tree interpreted as an object.
+	 * 						Returns null if any error encountered.
 	 */
 	private JsonObject parseJson(String jsonFile) {
 		// https://stackoverflow.com/a/62106829
@@ -338,15 +338,12 @@ public class GetFile {
 		} catch (FileNotFoundException e) {
 			System.err.println("GetFile.parseJson: FileNotFound");
 			e.printStackTrace();
-			throw new RuntimeException(e);
 		} catch (UnsupportedEncodingException e) {
 			e.printStackTrace();
 			System.err.println("GetFile.parseJson: UnsupportedEncoding");
-			throw new RuntimeException(e);
 		} catch (IOException e) {
 			System.err.println("GetFile.parseJson: IOException");
 			e.printStackTrace();
-			throw new RuntimeException(e);
 		}
 		return json;
 	}
@@ -479,7 +476,7 @@ public class GetFile {
 				dwnLoc.delete();
 			}
 			System.err.println(e);
-			throw new RuntimeException(e);
+			return 1;
 		}
 	}
 
@@ -488,6 +485,7 @@ public class GetFile {
 	 * Gets the precomputed MD5 checksum for a file at the corresponding file.md5.
 	 * @param fileUrl	URL to file on server to find checksum for
 	 * @return			String of precomputed MD5 from the md5 file on server.
+	 * 					Returns an empty string if not found.
 	 */
 	private String getExpectedMd5(String fileUrl) {
 		try {
@@ -499,7 +497,7 @@ public class GetFile {
 					"GetFile.getExpectedMd5: Could not find precomputed Md5 checksum for %s\n",
 					fileUrl);
 			System.err.println(e);
-			throw new RuntimeException(e);
+			return "";
 		}
 	}
 
