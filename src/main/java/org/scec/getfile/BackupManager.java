@@ -71,6 +71,8 @@ public class BackupManager {
 	
 	/**
 	 * Rollback to state when backup was last invoked.
+	 * A rollback consumes the backup, requiring a second backup to rollback
+	 * with the same BackupManager instance.
 	 * @return 0 if success and 1 if unable to rollback.
 	 */
 	public int rollback() {
