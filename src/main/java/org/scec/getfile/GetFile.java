@@ -16,7 +16,8 @@ public class GetFile {
 	 */
 	public GetFile(String serverPath, String clientPath) {
 		this.meta = MetadataHandler.getInstance();
-		this.meta.init(serverPath, clientPath);
+		meta.init(serverPath, clientPath);
+		this.prompter = new Prompter(false);
 	}
 	
 	/**
@@ -50,8 +51,8 @@ public class GetFile {
 		if (clientVersion.equals("")) {
 			meta.newClientEntry(file);
 		}
-		boolean shouldPrompt = Prompter.shouldPrompt(file);
-		if ((shouldPrompt && Prompter.promptDownload(file)) || !shouldPrompt) {
+		boolean shouldPrompt = prompter.shouldPrompt(file);
+		if ((shouldPrompt && prompter.promptDownload(file)) || !shouldPrompt) {
 			SimpleLogger.LOG(System.out,
 					"Update " + file + " " + clientVersion + " => " + serverVersion);
 			// Download and validate the new file from the server
@@ -63,4 +64,5 @@ public class GetFile {
 	}
 	
 	private MetadataHandler meta;
+	private Prompter prompter;
 }

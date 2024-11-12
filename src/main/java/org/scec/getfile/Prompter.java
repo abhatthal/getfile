@@ -7,11 +7,20 @@ package org.scec.getfile;
  */
 public class Prompter {
 	/**
+	 * Create a prompter with default prompt behavior for when not
+	 * specified in the client meta.
+	 * @param promptByDefault
+	 */
+	public Prompter(boolean promptByDefault) {
+		this.promptByDefault = promptByDefault;
+		this.meta = MetadataHandler.getInstance();
+	}
+	/**
 	 * Prompt user with JOptionPane if they want to update to latest version of file
 	 * @param file			Name of key corresponding to file to try downloading
 	 * @return true if we should download the latest version of this file
 	 */
-	public static boolean promptDownload(String file) {
+	public boolean promptDownload(String file) {
 		// In the event of a manual update type, prompt the user prior to download
 		// "Would you like to update `file` version to latestVersion now?"
 		// "Update Now" ,"Later", "Skip this Version"
@@ -30,8 +39,7 @@ public class Prompter {
 	 * @param file			Name of key corresponding to file to try downloading
 	 * @return				true if client metadata or default indicates
 	 */
-	public static boolean shouldPrompt(String file) {
-		MetadataHandler meta = MetadataHandler.getInstance();
+	public boolean shouldPrompt(String file) {
 		String shouldPrompt = meta.getClientMeta(file, "prompt");
 		if (shouldPrompt.equals("")) {
 			return promptByDefault;
@@ -47,5 +55,6 @@ public class Prompter {
 		return false;
 	}
 
-	private static final boolean promptByDefault = false;
+	private final boolean promptByDefault;
+	private MetadataHandler meta;
 }
