@@ -47,3 +47,8 @@ tasks.named('test') {
 	useJUnitPlatform()
 }
 
+tasks.javadoc {
+	// Generate documentation from code to build/docs with `gradle javadoc`
+    destinationDir = file("$buildDir/docs")
+}
+
