@@ -31,7 +31,20 @@ public class Prompter {
 	 * @return				true if client metadata or default indicates
 	 */
 	public static boolean shouldPrompt(String file) {
-		return promptByDefault;  // TODO
+		MetadataHandler meta = MetadataHandler.getInstance();
+		String shouldPrompt = meta.getClientMeta(file, "prompt");
+		if (shouldPrompt.equals("")) {
+			return promptByDefault;
+		}
+		if (shouldPrompt.equals("true")) {
+			return true;
+		}
+		if (!shouldPrompt.equals("false")) {
+			SimpleLogger.LOG(System.err,
+					"Invalid prompt value " + shouldPrompt +
+					". Assuming \"false\"");
+		}
+		return false;
 	}
 
 	private static final boolean promptByDefault = false;

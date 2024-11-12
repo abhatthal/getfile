@@ -21,6 +21,11 @@ import com.google.gson.Gson;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 
+/** TODO: Implement these tests
+ *   ChangedPath: Behavior when an existing file on server has its path changed (data and metadata)
+ *   MultipleBackups: Test multiple concurrent backup managers. Each should work and can't overwrite each other.
+ */
+
 /**
  * Test GetFile for correct JSON parsing and server response
  */
@@ -29,6 +34,7 @@ public class GetFileTest {
 	private GetFile getfile;
 	private MetadataHandler meta;
 	private WireMockServer wireMockServer;
+	private BackupManager backupManager;
 	private final String clientRoot = "src/test/resources/client_root/";
 
 	@BeforeEach
@@ -88,6 +94,7 @@ public class GetFileTest {
 		getfile = new GetFile(/*serverPath=*/"http://localhost:8088/",
 				/*clientPath=*/clientRoot);
 		meta = MetadataHandler.getInstance();
+		backupManager = new BackupManager();
 
 	}
 	
@@ -108,8 +115,8 @@ public class GetFileTest {
 	}
 
 	/**
-	 * Get the latest version of a file on the server.
-	 */
+//	 * Get the latest version of a file on the server.
+//	 */
 	@Test
 	public void latestVersion() {
 		assertEquals(meta.getServerMeta("file1", "version"), "v0.1.1");
@@ -140,7 +147,7 @@ public class GetFileTest {
 				new File(clientRoot+"data/file2.txt"), "utf-8"),
 				"Hi! I'm file2 at v1.0.0.\n");
 		// Update files and meta from server
-		getfile.backup();
+		backupManager.backup();
 		getfile.updateAll();
 		// Local meta should be updated
 		assertEquals(meta.getClientMeta("file1", "version"), "v0.1.1");
@@ -150,7 +157,7 @@ public class GetFileTest {
 				new File(clientRoot+"data/file2.txt"), "utf-8"),
 				"Hi! I'm file2 at v1.3.1.\n");
 		// Rollback to previous state
-		getfile.rollback();
+		backupManager.rollback();
 		// Local meta should be back at initial state
 		assertEquals(meta.getClientMeta("file1", "version"), "v0.1.1");
 		assertEquals(meta.getClientMeta("file2", "version"), "v1.0.0");
@@ -174,7 +181,7 @@ public class GetFileTest {
 				new File(clientRoot+"data/file2.txt"), "utf-8"),
 				"Hi! I'm file2 at v1.0.0.\n");
 		// Update files and meta from server
-		getfile.backup();
+		backupManager.backup();
 		getfile.updateAll();
 		// Local meta should be updated
 		assertEquals(meta.getClientMeta("file1", "version"), "v0.1.1");
@@ -193,7 +200,7 @@ public class GetFileTest {
 				new File(clientRoot+"data/file2.txt"), "utf-8"),
 				"Hi! I'm file2 at v1.3.1.\n");
 		// Rollback to previous state
-		getfile.rollback();
+		backupManager.rollback();
 		// Local meta should be back at initial state
 		assertEquals(meta.getClientMeta("file1", "version"), "v0.1.1");
 		assertEquals(meta.getClientMeta("file2", "version"), "v1.0.0");
@@ -215,10 +222,10 @@ public class GetFileTest {
 		assertEquals(FileUtils.readFileToString(
 				new File(clientRoot+"data/file2.txt"), "utf-8"),
 				"Hi! I'm file2 at v1.0.0.\n");
-		getfile.rollback();
-		getfile.rollback();
-		getfile.rollback();
-		getfile.rollback();
+		backupManager.rollback();
+		backupManager.rollback();
+		backupManager.rollback();
+		backupManager.rollback();
 		assertEquals(meta.getClientMeta("file1", "version"), "v0.1.1");
 		assertEquals(meta.getClientMeta("file2", "version"), "v1.0.0");
 		assertEquals(FileUtils.readFileToString(
@@ -235,6 +242,7 @@ public class GetFileTest {
 		assertEquals(meta.getClientMeta("file3", "version"), "");
 		assertEquals(meta.getServerMeta("file3", "version"), "v0.1.2");
 		assertFalse(new File(clientRoot+"data/file3").exists());
+		backupManager.backup();
 		getfile.updateAll();
 		assertEquals(meta.getClientMeta("file3", "version"), "v0.1.2");
 		assertEquals(meta.getServerMeta("file3", "version"), "v0.1.2");
@@ -243,8 +251,7 @@ public class GetFileTest {
 		assertEquals(FileUtils.readFileToString(
 				new File(clientRoot+"data/file3/file3.txt"), "utf-8"),
 				"Hi! I'm file3 at v0.1.2!\n");
-		getfile.rollback();
-		// Rollbacks don't delete folders created for new files
+		backupManager.rollback();
 		assertFalse(new File(clientRoot+"data/file3").exists());
 		assertFalse(new File(clientRoot+"data/file3/file3.txt").exists());
 	}
@@ -259,13 +266,13 @@ public class GetFileTest {
 		assertEquals(meta.getClientMeta("file1", "version"), "v0.1.1");
 		assertEquals(meta.getClientMeta("file2", "version"), "v1.0.0");
 		assertEquals(meta.getClientMeta("file3", "version"), "");
-		getfile.backup();
+		backupManager.backup();
 		getfile.updateFile("file3");
 		// file3 is updated but file2 is still outdated.
 		assertEquals(meta.getClientMeta("file1", "version"), "v0.1.1");
 		assertEquals(meta.getClientMeta("file2", "version"), "v1.0.0");
 		assertEquals(meta.getClientMeta("file3", "version"), "v0.1.2");
-		getfile.rollback();
+		backupManager.rollback();
 		assertEquals(meta.getClientMeta("file1", "version"), "v0.1.1");
 		assertEquals(meta.getClientMeta("file2", "version"), "v1.0.0");
 		assertEquals(meta.getClientMeta("file3", "version"), "");
@@ -273,13 +280,13 @@ public class GetFileTest {
 		assertEquals(meta.getClientMeta("file1", "version"), "v0.1.1");
 		assertEquals(meta.getClientMeta("file2", "version"), "v1.0.0");
 		assertEquals(meta.getClientMeta("file3", "version"), "");
-		getfile.backup();
+		backupManager.backup();
 		getfile.updateFile("file3");
 		// file3 is updated but file2 is still outdated.
 		assertEquals(meta.getClientMeta("file1", "version"), "v0.1.1");
 		assertEquals(meta.getClientMeta("file2", "version"), "v1.0.0");
 		assertEquals(meta.getClientMeta("file3", "version"), "v0.1.2");
-		getfile.rollback();
+		backupManager.rollback();
 		assertEquals(meta.getClientMeta("file1", "version"), "v0.1.1");
 		assertEquals(meta.getClientMeta("file2", "version"), "v1.0.0");
 		assertEquals(meta.getClientMeta("file3", "version"), "");
@@ -287,46 +294,42 @@ public class GetFileTest {
 		assertEquals(meta.getClientMeta("file1", "version"), "v0.1.1");
 		assertEquals(meta.getClientMeta("file2", "version"), "v1.0.0");
 		assertEquals(meta.getClientMeta("file3", "version"), "");
-		getfile.backup();
+		backupManager.backup();
 		getfile.updateFile("file2");
 		// file3 not downloaded and file2 is updated
 		assertEquals(meta.getClientMeta("file1", "version"), "v0.1.1");
 		assertEquals(meta.getClientMeta("file2", "version"), "v1.3.1");
 		assertEquals(meta.getClientMeta("file3", "version"), "");
-		getfile.rollback();
+		backupManager.rollback();
 		assertEquals(meta.getClientMeta("file1", "version"), "v0.1.1");
 		assertEquals(meta.getClientMeta("file2", "version"), "v1.0.0");
 		assertEquals(meta.getClientMeta("file3", "version"), "");
 		// Update both file1 and file2
-		getfile.backup();
+		backupManager.backup();
 		getfile.updateFile("file1");
 		getfile.updateFile("file2");
 		assertEquals(meta.getClientMeta("file1", "version"), "v0.1.1");
 		assertEquals(meta.getClientMeta("file2", "version"), "v1.3.1");
-		getfile.rollback();
+		backupManager.rollback();
 		assertEquals(meta.getClientMeta("file1", "version"), "v0.1.1");
 		assertEquals(meta.getClientMeta("file2", "version"), "v1.0.0");
 		// Update both file2 and file3
-		getfile.backup();
+		backupManager.backup();
 		getfile.updateFile("file2");
 		getfile.updateFile("file3");
 		assertEquals(meta.getClientMeta("file2", "version"), "v1.3.1");
 		assertEquals(meta.getClientMeta("file3", "version"), "v0.1.2");
-		getfile.rollback();
+		backupManager.rollback();
 		assertEquals(meta.getClientMeta("file2", "version"), "v1.0.0");
 		assertEquals(meta.getClientMeta("file3", "version"), "");
 		// Update both and rollback to just file2 updated
 		getfile.updateFile("file2");
-		getfile.backup();
+		backupManager.backup();
 		getfile.updateFile("file3");
 		assertEquals(meta.getClientMeta("file2", "version"), "v1.3.1");
 		assertEquals(meta.getClientMeta("file3", "version"), "v0.1.2");
-		getfile.rollback();
+		backupManager.rollback();
 		assertEquals(meta.getClientMeta("file2", "version"), "v1.3.1");
 		assertEquals(meta.getClientMeta("file3", "version"), "");
-	}
-	
-	/** TODO: Implement these tests
-	 *   ChangedPath: Behavior when an existing file on server has its path changed (data and metadata)
-	 */
+	}	
 }

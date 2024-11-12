@@ -64,6 +64,18 @@ public class MetadataHandler {
 		this.serverMeta = parseJson(cachedServerMetaFile.getPath());
 		this.initialized = true;
 	}
+
+	/**
+	 * Get an instance of MetadataHandler and create one if there isn't any
+	 * Requires invoking the init method at least once prior to use.
+	 * @return
+	 */
+	public static MetadataHandler getInstance() {
+		if (instance == null) {
+			instance = new MetadataHandler();
+		}
+		return instance;
+	}
 	
 	/**
 	 * Private constructor ensures only made via getInstance() followed by init().
@@ -80,19 +92,6 @@ public class MetadataHandler {
 		}
 		return initialized;
 	}
-
-	/**
-	 * Get an instance of MetadataHandler and create one if there isn't any
-	 * Requires invoking the init method at least once prior to use.
-	 * @return
-	 */
-	public static MetadataHandler getInstance() {
-		if (instance == null) {
-			instance = new MetadataHandler();
-		}
-		return instance;
-	}
-	
 	
 	/**
 	 * Read cached file metadata from server
@@ -121,8 +120,8 @@ public class MetadataHandler {
 	}
 	
 	/**
-	 * Loads client metadata from file. Can be done multiple times to load
-	 * fresh changes made directly to file.
+	 * Loads client metadata from file into memory.
+	 * Can be done multiple times to load fresh changes made directly to file.
 	 */
 	public void loadClientMeta() {
 		if (clientPath == null) {
@@ -169,16 +168,15 @@ public class MetadataHandler {
 	}
 	
 	/**
-	 * Getter for name of metadata JSOn file on server
+	 * Getter for name of metadata JSON file on server
 	 * @return
 	 */
 	public final String getServerMetaName() {
 		return serverMetaName;
 	}
-
 	
 	/**
-	 * Set file[key] = value in client metadata.
+	 * Set file[key] = value in client metadata in both memory and disk.
 	 * Used to update client file version after successful update.
 	 * This requires the file entry to exist. File entries are created with
 	 * the function `newClientEntry`.
@@ -200,9 +198,8 @@ public class MetadataHandler {
 	}
 	
 	/**
-	 * Create a new JsonObject for the client metadata.
-	 * When a new file is discovered on the server, we need to start tracking
-	 * client versions and update our client metadata accordingly.
+	 * Create a new JsonObject for the client metadata and append the entry into
+	 * both memory and disk.
 	 * @param file	Name of new JsonObject entry
 	 */
 	public void newClientEntry(String file) {
