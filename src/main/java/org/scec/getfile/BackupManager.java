@@ -60,6 +60,7 @@ public class BackupManager {
 	 * Rollbacks do nothing if no backup exists. Backups persist across GetFile instances.
 	 */
 	public void backup() {
+		if (!meta.isInitialized()) return;
 		backupFile(meta.getClientPath().concat(meta.getClientMetaName()));
         for (String file : meta.getClientFiles()) {
 			String filePath =
@@ -74,7 +75,7 @@ public class BackupManager {
 	 * @return 0 if success and 1 if unable to rollback.
 	 */
 	public int rollback() {
-		if (!backupExists) {
+		if (!backupExists || !meta.isInitialized()) {
 			SimpleLogger.LOG(System.err, "No backup snapshot found for rollback");
 			return 1;
 		}

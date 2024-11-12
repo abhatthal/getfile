@@ -86,7 +86,7 @@ public class MetadataHandler {
 	 * Checks if the MetadaHandler has invoked the init method.
 	 * @return
 	 */
-	private boolean isInitialized() {
+	public boolean isInitialized() {
 		if (!initialized) {
 			SimpleLogger.LOG(System.err, "MetadataHandler singleton not initialized.");
 		}
