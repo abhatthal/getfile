@@ -67,7 +67,6 @@ public class BackupManager {
 					meta.getClientPath().concat(meta.getServerMeta(file, "path"));
 			backupFile(filePath);
         }
-		backupExists = true;
 	}
 	
 	/**
@@ -75,7 +74,7 @@ public class BackupManager {
 	 * @return 0 if success and 1 if unable to rollback.
 	 */
 	public int rollback() {
-		if (!backupExists || !meta.isInitialized()) {
+		if (!backupExists()) {
 			SimpleLogger.LOG(System.err, "No backup snapshot found for rollback");
 			return 1;
 		}
@@ -181,8 +180,18 @@ public class BackupManager {
 		}	
 	}
 	
+	/**
+	 * Returns true if there exists a backup for current identifier.
+	 * @return
+	 */
+	private boolean backupExists() {
+		if (!meta.isInitialized()) return false;
+		File metaBak = new File(
+				meta.getClientPath().concat(meta.getClientMetaName() + identifier));
+		return metaBak.exists();
+	}
+	
 	private final String identifier;
-	private boolean backupExists;
 	private static final Set<String> identifiers = new HashSet<>();
 	private MetadataHandler meta;
 }
