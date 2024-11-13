@@ -83,7 +83,7 @@ public class BackupManager {
         			meta.getServerMeta(file, "path"));
         	try {
 				File savLoc = path.toFile();
-				File bakLoc = new File(path.toString().concat(".bak"));
+				File bakLoc = new File(path.toString().concat(identifier));
 				if (!savLoc.exists() && !bakLoc.exists()) {
 					SimpleLogger.LOG(System.err,
 							"Tracked file is missing. Skipping " + file);
