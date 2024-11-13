@@ -9,12 +9,22 @@ public class Prompter {
 	/**
 	 * Create a prompter with default prompt behavior for when not
 	 * specified in the client meta.
+	 * @param meta
 	 * @param promptByDefault
 	 */
-	public Prompter(boolean promptByDefault) {
+	public Prompter(MetadataHandler meta, boolean promptByDefault) {
+		this.meta = meta;
 		this.promptByDefault = promptByDefault;
-		this.meta = MetadataHandler.getInstance();
 	}
+	
+	/**
+	 * Create a prompter with a default behavior of not prompting by default
+	 * @param meta
+	 */
+	public Prompter(MetadataHandler meta) {
+		this(meta, false);
+	}
+
 	/**
 	 * Prompt user with JOptionPane if they want to update to latest version of file
 	 * @param file			Name of key corresponding to file to try downloading

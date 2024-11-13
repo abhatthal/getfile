@@ -6,6 +6,8 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.File;
 import java.io.IOException;
+import java.net.URI;
+import java.net.URISyntaxException;
 
 import static com.github.tomakehurst.wiremock.client.WireMock.aResponse;
 import static com.github.tomakehurst.wiremock.client.WireMock.get;
@@ -88,13 +90,19 @@ public class GetFileTest {
 		} catch (IOException e) {
 			e.printStackTrace();
 		}
-        
 
-		// Set up GetFile instance after server initialization
-		getfile = new GetFile(/*serverPath=*/"http://localhost:8088/",
-				/*clientPath=*/clientRoot);
-		meta = MetadataHandler.getInstance();
-		backupManager = new BackupManager();
+        URI uri = null;
+        try {
+        	uri = new URI("http://localhost:8088/meta.json");
+		} catch (URISyntaxException e) {
+			e.printStackTrace();
+		}
+		getfile = new GetFile(
+				/*clientMetaFile=*/new File(clientRoot+"getfile.json"),
+				/*serverMetaURI=*/uri);
+		// TODO: Move into getfile
+		meta = getfile.meta;
+		backupManager = new BackupManager(meta);
 
 	}
 	
@@ -115,8 +123,8 @@ public class GetFileTest {
 	}
 
 	/**
-//	 * Get the latest version of a file on the server.
-//	 */
+	 * Get the latest version of a file on the server.
+	 */
 	@Test
 	public void latestVersion() {
 		assertEquals(meta.getServerMeta("file1", "version"), "v0.1.1");
@@ -136,6 +144,7 @@ public class GetFileTest {
 	/**
 	 * Ensure outdated files are successfully updated and can be rolled back
 	 * @throws IOException 
+	 * @throws URISyntaxException 
 	 */
 	@Test
 	public void updateAll() throws IOException {

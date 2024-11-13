@@ -22,29 +22,31 @@ public class BackupManager {
 	 * identify the backup and rollback accordingly. The identifier is simply appended
 	 * to the end of the file name. If two instances are made with the same identifier
 	 * then they will overwrite any existing backup.
-	 * @param identifier
+	 * @param meta			Corresponding metadata for snapshots	
+	 * @param identifier	String to uniquely identify backups as a file suffix
 	 */
-	public BackupManager(String identifier) {
+	public BackupManager(MetadataHandler meta, String identifier) {
 		// Warn user that this identifier was already created this session.
 		// We don't prevent instantiation as it simply overwrites existing backups
 		// created by another BackupManager.
 		if (identifiers.contains(identifier)) {
 			SimpleLogger.LOG(System.err,
-					"Warning: The BackupManager identifier=" + identifier +
-					" is already in use");
+					"Warning: The BackupManager identifier=\"" + identifier +
+					"\" is already in use");
 		}
 		identifiers.add(identifier);
 		if (!identifier.equals("")) {
 			identifier = "-" + identifier;
 		}
 		this.identifier = ".bak".concat(identifier);
-		this.meta = MetadataHandler.getInstance();
+		this.meta = meta;
 	}
 	/**
 	 * The constructor without an identifier passed assumes an empty string.
+	 * @param meta			Corresponding metadata for snapshots	
 	 */
-	public BackupManager() {
-		this("");
+	public BackupManager(MetadataHandler meta) {
+		this(meta, "");
 	}
 	
 	/**
@@ -60,12 +62,12 @@ public class BackupManager {
 	 * Rollbacks do nothing if no backup exists. Backups persist across GetFile instances.
 	 */
 	public void backup() {
-		if (!meta.isInitialized()) return;
-		backupFile(meta.getClientPath().concat(meta.getClientMetaName()));
+		backupFile(meta.getClientMetaFile());
         for (String file : meta.getClientFiles()) {
-			String filePath =
-					meta.getClientPath().concat(meta.getServerMeta(file, "path"));
-			backupFile(filePath);
+        	Path path = Paths.get(
+        			meta.getClientMetaFile().getParent(),
+        			meta.getServerMeta(file, "path"));
+			backupFile(path.toFile());
         }
 	}
 	
@@ -81,16 +83,18 @@ public class BackupManager {
 			return 1;
 		}
 		int status = 0;
+        File clientMetaFile = meta.getClientMetaFile();
 		// Iterate over the local files to potentially rollback.
-		final String clientPath = meta.getClientPath();
         for (String file : meta.getClientFiles()) {
-				String filePath = clientPath.concat(meta.getServerMeta(file, "path"));
+        	Path path = Paths.get(
+        			clientMetaFile.getParent(),
+        			meta.getServerMeta(file, "path"));
         	try {
-				File savLoc = new File(filePath);
-				File bakLoc = new File(filePath.concat(identifier));
+				File savLoc = path.toFile();
+				File bakLoc = new File(path.toString().concat(".bak"));
 				if (!savLoc.exists() && !bakLoc.exists()) {
 					SimpleLogger.LOG(System.err,
-							"Tracked file is missing. Skipping " + filePath);
+							"Tracked file is missing. Skipping " + file);
 					status = 1;
 					continue;
 				}
@@ -107,14 +111,13 @@ public class BackupManager {
 					SimpleLogger.LOG(System.out, "deleted " + file);
 				}
 			} catch (IOException e) {
-						SimpleLogger.LOG(System.err, "Failed to rollback " + filePath);
+						SimpleLogger.LOG(System.err, "Failed to rollback " + file);
 				status = 1;
 				e.printStackTrace();
 			}
         }
-        deleteEmptyDirs(Paths.get(clientPath));
+        deleteEmptyDirs(Paths.get(clientMetaFile.getParent()));
         // Rollback the local meta itself
-        File clientMetaFile = new File(clientPath.concat(meta.getClientMetaName()));
         File clientMetaBak = new File(clientMetaFile.getPath().concat(identifier));
         if (clientMetaFile.exists() && clientMetaBak.exists()) {
         	try {
@@ -139,17 +142,13 @@ public class BackupManager {
 	 * Backs up file if it exists
 	 * @param filePath
 	 */
-	private void backupFile(String filePath) {
-		File file = new File(filePath);
-		File bak = new File(filePath.concat(identifier));
+	private void backupFile(File file) {
+		File bak = new File(file.getPath().concat(identifier));
 		if (file.exists()) {
 			try {
-				if (bak.exists()) {
-					FileUtils.delete(bak);
-				}
-				FileUtils.copyFile(file, new File(filePath.concat(identifier)));
+				FileUtils.copyFile(file, bak);
 			} catch (IOException e) {
-				SimpleLogger.LOG(System.out, "Refused to backup " + filePath);
+				SimpleLogger.LOG(System.err, "Refused to backup " + file.getName());
 				e.printStackTrace();
 			}
 		}
@@ -187,9 +186,8 @@ public class BackupManager {
 	 * @return
 	 */
 	private boolean backupExists() {
-		if (!meta.isInitialized()) return false;
-		File metaBak = new File(
-				meta.getClientPath().concat(meta.getClientMetaName() + identifier));
+        File metaBak = new File(
+        		meta.getClientMetaFile().getPath().concat(identifier));
 		return metaBak.exists();
 	}
 	

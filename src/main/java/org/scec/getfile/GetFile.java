@@ -1,5 +1,10 @@
 package org.scec.getfile;
 
+import java.io.File;
+import java.net.URI;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+
 // TODO: Set up modules to make utility classes private outside JAR
 
 /**
@@ -11,13 +16,13 @@ public class GetFile {
 	/**
 	 * Constructor establishes connection with server and parses local and
 	 * server file metadata into memory.
-	 * @param serverPath		Server metadata and new files found here
-	 * @param clientPath		Local metadata and downloaded files here
+	 * @param clientMetaFile	Reference to local metadata file on client
+	 * @param serverMetaURI		Link to hosted server metadata file to download
 	 */
-	public GetFile(String serverPath, String clientPath) {
-		this.meta = MetadataHandler.getInstance();
-		meta.init(serverPath, clientPath);
-		this.prompter = new Prompter(false);
+	public GetFile(File clientMetaFile, URI serverMetaURI) {
+		this.meta = new MetadataHandler(clientMetaFile, serverMetaURI);
+		this.prompter = new Prompter(meta);
+		// TODO: Keep a hashmap of BackupManagers to manage multiple backups
 	}
 	
 	/**
@@ -38,15 +43,11 @@ public class GetFile {
 	public void updateFile(String file) {
 		final String serverVersion = meta.getServerMeta(file, "version");
 		final String clientVersion = meta.getClientMeta(file, "version");
-		final String clientPath = meta.getClientPath();
-		final String serverPath = meta.getServerPath();
-
 		if (clientVersion.equals(serverVersion)) {
 			SimpleLogger.LOG(System.out,
 					"File " + file + " is already up to date.");
 			return;
 		}
-		String downloadPath = clientPath.concat(meta.getServerMeta(file, "path"));
 		// Create the file entry if it doesn't already exist
 		if (clientVersion.equals("")) {
 			meta.newClientEntry(file);
@@ -56,13 +57,18 @@ public class GetFile {
 			SimpleLogger.LOG(System.out,
 					"Update " + file + " " + clientVersion + " => " + serverVersion);
 			// Download and validate the new file from the server
-			Downloader.downloadFile(serverPath.concat(meta.getServerMeta(file, "path")),
-					downloadPath, /*retries=*/3);
+			Path downloadLoc = Paths.get(
+					meta.getClientMetaFile().getParent(),
+					meta.getServerMeta(file, "path"));
+			URI serverLoc = URI.create(
+					meta.getServerPath().toString().concat(
+							meta.getServerMeta(file, "path")));
+			Downloader.downloadFile(serverLoc, downloadLoc);
 			// Update the client meta version accordingly
 			meta.setClientMeta(file, "version", serverVersion);
 		}
 	}
-	
-	private MetadataHandler meta;
+	// TODO: Make meta private after move BackupManager internally
+	public MetadataHandler meta;
 	private Prompter prompter;
 }

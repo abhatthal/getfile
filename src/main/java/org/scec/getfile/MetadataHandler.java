@@ -5,42 +5,42 @@ import com.google.gson.GsonBuilder;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 
-import java.io.InputStreamReader;
-import java.io.Reader;
-import java.io.UnsupportedEncodingException;
-import java.nio.charset.StandardCharsets;
+import java.net.MalformedURLException;
+import java.net.URI;
 import java.util.Set;
 
 import org.apache.commons.io.FileUtils;
 
 import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileNotFoundException;
+import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.IOException;
 
 /**
- * Singleton MetadataHandler handles metadata IO on server and client.
- * One shared instance is used for data access across GetFile classes.
+ * MetadataHandler handles metadata IO on server and client.
  */
 public class MetadataHandler {
 	/**
 	 * Reads file metadata from server and client and writes client metadata
-	 * as new files are downloaded. One time initialization
-	 * @param serverPath		Server metadata and new files found here
-	 * @param clientPath		Local metadata and downloaded files here
+	 * as new files are downloaded. Reads fresh server meta on initialization.
+	 * @param clientMetaFile	Reference to local metadata file on client
+	 * @param serverMetaURI		Link to hosted server metadata file to download
 	 */
-	public void init(String serverPath, String clientPath) {
-		this.serverPath = serverPath;
-		this.clientPath = clientPath;
+	public MetadataHandler(File clientMetaFile, URI serverMetaURI) {
+		// Read client metadata
+		this.clientMetaFile = clientMetaFile;
 		loadClientMeta();
 		// Get a fresh copy of the latest file versions
-		final File cachedServerMetaFile = new File(
-				clientPath.concat(serverMetaName));
-		final File freshServerMetaFile = new File(
-				clientPath.concat("." + serverMetaName));
-		Downloader.downloadFile(serverPath.concat(serverMetaName),
-				freshServerMetaFile.getPath(), /*retries=*/3);
+		String serverMetaFileName;
+		this.serverMetaURI = serverMetaURI;
+		String path = serverMetaURI.getPath();
+		serverMetaFileName = path.substring(path.lastIndexOf('/') + 1);
+		File cachedServerMetaFile = new File(
+				clientMetaFile.getParent(), serverMetaFileName);
+		File freshServerMetaFile = new File(
+				clientMetaFile.getParent(), "." + serverMetaFileName);
+		Downloader.downloadFile(serverMetaURI,
+				freshServerMetaFile.toPath(), /*retries=*/3);
 		try {
 			// Proceed with download if no cache hit
 			if (!cachedServerMetaFile.exists() ||
@@ -61,38 +61,10 @@ public class MetadataHandler {
 			this.serverMeta = null;
 			e.printStackTrace();
 		}
-		this.serverMeta = parseJson(cachedServerMetaFile.getPath());
-		this.initialized = true;
+		this.serverMetaFile = cachedServerMetaFile;
+		this.serverMeta = parseJson(serverMetaFile);
 	}
 
-	/**
-	 * Get an instance of MetadataHandler and create one if there isn't any
-	 * Requires invoking the init method at least once prior to use.
-	 * @return
-	 */
-	public static MetadataHandler getInstance() {
-		if (instance == null) {
-			instance = new MetadataHandler();
-		}
-		return instance;
-	}
-	
-	/**
-	 * Private constructor ensures only made via getInstance() followed by init().
-	 */
-	private MetadataHandler() {};
-	
-	/**
-	 * Checks if the MetadaHandler has invoked the init method.
-	 * @return
-	 */
-	public boolean isInitialized() {
-		if (!initialized) {
-			SimpleLogger.LOG(System.err, "MetadataHandler singleton not initialized.");
-		}
-		return initialized;
-	}
-	
 	/**
 	 * Read cached file metadata from server
 	 * @param file		Key in the meta.json file. Not necessarily filename.
@@ -101,6 +73,16 @@ public class MetadataHandler {
 	 */
 	public String getServerMeta(String file, String key) {
 		return getMetaImpl(file, key, serverMeta);
+	}
+
+	/**
+	 * Read file metadata from client
+	 * @param file		Key in the getfile.json file. Not necessarily filename.
+	 * @param key		Filedata to lookup, i.e. path, version
+	 * @return			Value corresponding to key in JSON
+	 */
+	public String getClientMeta(String file, String key) {
+		return getMetaImpl(file, key, clientMeta);
 	}
 	
 	/**
@@ -124,55 +106,45 @@ public class MetadataHandler {
 	 * Can be done multiple times to load fresh changes made directly to file.
 	 */
 	public void loadClientMeta() {
-		if (clientPath == null) {
-			SimpleLogger.LOG(
-					System.err, "clientPath hasn't been set. Can't load client metadata");
-		}
-		this.clientMeta = parseJson(clientPath.concat(clientMetaName));	
+		this.clientMeta = parseJson(clientMetaFile);	
 	}
 
 	/**
-	 * Read file metadata from client
-	 * @param file		Key in the getfile.json file. Not necessarily filename.
-	 * @param key		Filedata to lookup, i.e. path, version
-	 * @return			Value corresponding to key in JSON
-	 */
-	public String getClientMeta(String file, String key) {
-		return getMetaImpl(file, key, clientMeta);
-	}
-
-	/**
-	 * Getter for root path to server files
+	 * Get File where server metadata is cached
 	 * @return
 	 */
-	public String getServerPath() {
-		if (!isInitialized()) return "";
-		return serverPath;
+	public File getServerMetaFile() {
+		return serverMetaFile;
 	}
 	
 	/**
-	 * Getter for root path to client files
+	 * Get File where client metadata is stored
 	 * @return
 	 */
-	public String getClientPath() {
-		if (!isInitialized()) return "";
-		return clientPath;
+	public File getClientMetaFile() {
+		return clientMetaFile;
 	}
 	
 	/**
-	 * Getter for name of metadata JSON file on client
+	 * Get link where all server files in hosted metadata file are stored
 	 * @return
 	 */
-	public final String getClientMetaName() {
-		return clientMetaName;
-	}
-	
-	/**
-	 * Getter for name of metadata JSON file on server
-	 * @return
-	 */
-	public final String getServerMetaName() {
-		return serverMetaName;
+	public URI getServerPath() {
+		// Get the path part of the URI and find the last slash index
+		String path = serverMetaURI.getPath();
+		int lastSlashIndex = path.lastIndexOf('/');
+		// Get the parent directory path
+		String dirPath = (lastSlashIndex != -1)
+				? path.substring(0, lastSlashIndex + 1)
+				: path;
+		// Create a new URI for the directory
+		return URI.create(
+				serverMetaURI.getScheme() + "://"
+						+ serverMetaURI.getHost()
+						+ (serverMetaURI.getPort() != -1
+							? ":" + serverMetaURI.getPort()
+							: "")
+						+ dirPath);
 	}
 	
 	/**
@@ -185,7 +157,6 @@ public class MetadataHandler {
 	 * @param value
 	 */
 	public void setClientMeta(String file, String key, String value) {
-		if (!isInitialized()) return;
 		try {
 			// Update the file value in memory
 			((JsonObject) clientMeta.get(file)).addProperty(key, value);
@@ -203,7 +174,6 @@ public class MetadataHandler {
 	 * @param file	Name of new JsonObject entry
 	 */
 	public void newClientEntry(String file) {
-		if (!isInitialized()) return;
 		JsonObject newFileEntry = new JsonObject();
 		newFileEntry.addProperty("version", "");
 		// newFileEntry.addProperty("prompt", String.valueOf(promptByDefault));
@@ -215,10 +185,9 @@ public class MetadataHandler {
 	 * Push current state of clientMeta in memory to the client meta file on disk.
 	 */
 	private void writeClientMetaState() {
-		if (!isInitialized()) return;
 		Gson gson = new GsonBuilder().setPrettyPrinting().create();
 		try {
-			FileWriter writer = new FileWriter(clientPath.concat(clientMetaName));
+			FileWriter writer = new FileWriter(clientMetaFile);
 			gson.toJson(clientMeta, writer);
 			writer.flush();
 			writer.close();
@@ -236,49 +205,35 @@ public class MetadataHandler {
 	 * @return			Value corresponding to key in JSON or empty string if not found.
 	 */
 	private String getMetaImpl(String file, String key, JsonObject meta) {
-		if (!isInitialized()) return "";
 		try {
 			return ((JsonObject) meta.get(file))
 				.get(key).toString().replaceAll("\"", "");
 		} catch (NullPointerException e) {
-			SimpleLogger.LOG(System.err, file+"." + key + " not found in meta"); 
+			SimpleLogger.LOG(System.err, file +"." + key + " not found in meta"); 
 			return "";
 		}
 	}
 
 	/**
 	 * Read a JSON file into memory for evaluation
-	 * @param jsonFile		JSON file to parse
+	 * @param file			JSON file to parse
 	 * @return				JSON tree interpreted as an object.
 	 * 						Returns null if any error encountered.
 	 */
-	private JsonObject parseJson(String jsonFile) {
-		// https://stackoverflow.com/a/62106829
-		JsonObject json = null;
-		try (Reader reader = new InputStreamReader(
-				new FileInputStream(jsonFile), StandardCharsets.UTF_8)) {
-		    json = (JsonObject) JsonParser.parseReader(reader);
-		} catch (FileNotFoundException e) {
-			SimpleLogger.LOG(System.err, "FileNotFound " + jsonFile);
-			e.printStackTrace();
-		} catch (UnsupportedEncodingException e) {
-			e.printStackTrace();
-			SimpleLogger.LOG(System.err, "UnsupportedEncoding");
-		} catch (IOException e) {
-			SimpleLogger.LOG(System.err, "IOException");
-			e.printStackTrace();
-		}
-		return json;
-	}
+    private JsonObject parseJson(File file) {
+        try (FileReader reader = new FileReader(file)) {
+            // Parse JSON content as a JsonObject
+            return JsonParser.parseReader(reader).getAsJsonObject();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+        return null;
+    }
 	
-	// Instance of Metadatahandler singleton
-	private static MetadataHandler instance;
-	private boolean initialized = false;  // Use IsInitialized() for check
-	// Names of metadata files
-	private String clientMetaName = "getfile.json";
-	private final String serverMetaName = "meta.json";
-	private String serverPath;
-	private String clientPath;
+	// Names of metadata JSON files
+	private File clientMetaFile;
+	private File serverMetaFile;
+	private URI serverMetaURI;
 	// Parsed metadata objects
 	private JsonObject serverMeta;
 	private JsonObject clientMeta;
