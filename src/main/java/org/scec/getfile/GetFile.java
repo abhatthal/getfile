@@ -4,6 +4,8 @@ import java.io.File;
 import java.net.URI;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.HashMap;
+import java.util.Map;
 
 // TODO: Set up modules to make utility classes private outside JAR
 
@@ -20,9 +22,9 @@ public class GetFile {
 	 * @param serverMetaURI		Link to hosted server metadata file to download
 	 */
 	public GetFile(File clientMetaFile, URI serverMetaURI) {
-		this.meta = new MetadataHandler(clientMetaFile, serverMetaURI);
+		this.meta = new MetadataHandler(clientMetaFile.getAbsoluteFile(), serverMetaURI);
 		this.prompter = new Prompter(meta);
-		// TODO: Keep a hashmap of BackupManagers to manage multiple backups
+		this.backups = new HashMap<String, BackupManager>();
 	}
 	
 	/**
@@ -68,7 +70,34 @@ public class GetFile {
 			meta.setClientMeta(file, "version", serverVersion);
 		}
 	}
-	// TODO: Make meta private after move BackupManager internally
-	public MetadataHandler meta;
+	
+	/**
+	 * Each BackupManager can take a snapshot of the current directory and rollback
+	 * to that state.
+	 * Multiple BackupManagers may belong to a GetFile instance,
+	 * allowing for multiple backups at different states.
+	 * This method allows us to get or create a BackupManager as needed.
+	 * @param identifier
+	 * @return corresponding BackupManager for the given unique identifier.
+	 */
+	public BackupManager getBackupManager(String identifier) {
+		if (backups.containsKey(identifier)) {
+			return backups.get(identifier);
+		}
+		BackupManager backup = new BackupManager(meta, identifier);
+		backups.put(identifier, backup);
+		return backup;
+	}
+	
+	/**
+	 * Invoke the BackupManager with an empty string identifier.
+	 * @return
+	 */
+	public BackupManager getBackupManager() {
+		return getBackupManager("");
+		
+	}
+	private Map<String, BackupManager> backups;
+	MetadataHandler meta;
 	private Prompter prompter;
 }

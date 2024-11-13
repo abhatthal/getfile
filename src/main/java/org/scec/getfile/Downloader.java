@@ -18,7 +18,7 @@ import org.apache.commons.io.IOUtils;
  * with validation and specified retry attempts.
  * Unlike GetFile, there is no versioning, metadata handling, or backup logic.
  */
-public class Downloader {
+class Downloader {
 	/**
 	 * Retry download until it succeeds or `retries` attempts exceeded.
 	 * If retries is not specified, defaults to 1 attempt.
@@ -27,7 +27,7 @@ public class Downloader {
 	 * @param retries				Count of retry attempts
 	 * @return						0 if success and 1 if reached n executions
 	 */
-	public static int downloadFile(URI uri, Path saveLocation, int retries) {
+	static int downloadFile(URI uri, Path saveLocation, int retries) {
 		int status = 1;
 		for (int i = 0; i < retries && status != 0; i++) {
 			status = downloadFile(uri, saveLocation);
@@ -41,7 +41,7 @@ public class Downloader {
 	 * @param saveLocation			Where the downloaded file should be stored
 	 * @return						0 if success and 1 if any failure
 	 */
-	public static int downloadFile(URI uri, Path saveLocation) {
+	static int downloadFile(URI uri, Path saveLocation) {
 		File savLoc = saveLocation.toFile();
 		File dwnLoc = new File(saveLocation.toString().concat(".part"));
 		try {

@@ -7,7 +7,6 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import java.io.File;
 import java.io.IOException;
 import java.net.URI;
-import java.net.URISyntaxException;
 
 import static com.github.tomakehurst.wiremock.client.WireMock.aResponse;
 import static com.github.tomakehurst.wiremock.client.WireMock.get;
@@ -24,8 +23,14 @@ import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 
 /** TODO: Implement these tests
- *   ChangedPath: Behavior when an existing file on server has its path changed (data and metadata)
- *   MultipleBackups: Test multiple concurrent backup managers. Each should work and can't overwrite each other.
+ *   changedPath: Behavior when an existing file on server has its path changed (data and metadata)
+ *   multipleBackups: Test multiple concurrent backup managers. Each should work and can't overwrite each other.
+ *   noClientDataUpdate: Test update logic when there is no client data or client metadata file 
+ * 	 noClientDataBackup: Test backup logic when there’s no client data to backup
+ * 						 Also consider when there’s an update from no data initially
+ * 
+ * TODO: Restructure tests into multiple classes all inheriting from
+ * 		 BaseWireMockTest with shared wiremock logic.
  */
 
 /**
@@ -76,7 +81,7 @@ public class GetFileTest {
                 }
                 """;
         JsonObject clientMeta = JsonParser.parseString(clientMetaStr).getAsJsonObject();
-        File clientMetaFile = new File(clientRoot+"getfile.json");
+        File clientMetaFile = new File(clientRoot + "getfile.json");
         try {
 			FileUtils.writeStringToFile(clientMetaFile, new Gson().toJson(clientMeta), "UTF-8");
 			FileUtils.writeStringToFile(
@@ -90,20 +95,10 @@ public class GetFileTest {
 		} catch (IOException e) {
 			e.printStackTrace();
 		}
-
-        URI uri = null;
-        try {
-        	uri = new URI("http://localhost:8088/meta.json");
-		} catch (URISyntaxException e) {
-			e.printStackTrace();
-		}
-		getfile = new GetFile(
-				/*clientMetaFile=*/new File(clientRoot+"getfile.json"),
-				/*serverMetaURI=*/uri);
-		// TODO: Move into getfile
+        URI serverMetaURI = URI.create("http://localhost:8088/meta.json");
+		getfile = new GetFile(clientMetaFile, serverMetaURI);
 		meta = getfile.meta;
-		backupManager = new BackupManager(meta);
-
+		backupManager = getfile.getBackupManager();
 	}
 	
 	@AfterEach
@@ -144,7 +139,6 @@ public class GetFileTest {
 	/**
 	 * Ensure outdated files are successfully updated and can be rolled back
 	 * @throws IOException 
-	 * @throws URISyntaxException 
 	 */
 	@Test
 	public void updateAll() throws IOException {

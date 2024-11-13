@@ -5,14 +5,14 @@ package org.scec.getfile;
  * Prompt a user with a graphical pane to update a file. Contains logic for if
  * a prompt should occur for a given file.
  */
-public class Prompter {
+class Prompter {
 	/**
 	 * Create a prompter with default prompt behavior for when not
 	 * specified in the client meta.
 	 * @param meta
 	 * @param promptByDefault
 	 */
-	public Prompter(MetadataHandler meta, boolean promptByDefault) {
+	Prompter(MetadataHandler meta, boolean promptByDefault) {
 		this.meta = meta;
 		this.promptByDefault = promptByDefault;
 	}
@@ -21,7 +21,7 @@ public class Prompter {
 	 * Create a prompter with a default behavior of not prompting by default
 	 * @param meta
 	 */
-	public Prompter(MetadataHandler meta) {
+	Prompter(MetadataHandler meta) {
 		this(meta, false);
 	}
 
@@ -30,7 +30,7 @@ public class Prompter {
 	 * @param file			Name of key corresponding to file to try downloading
 	 * @return true if we should download the latest version of this file
 	 */
-	public boolean promptDownload(String file) {
+	boolean promptDownload(String file) {
 		// In the event of a manual update type, prompt the user prior to download
 		// "Would you like to update `file` version to latestVersion now?"
 		// "Update Now" ,"Later", "Skip this Version"
@@ -49,7 +49,7 @@ public class Prompter {
 	 * @param file			Name of key corresponding to file to try downloading
 	 * @return				true if client metadata or default indicates
 	 */
-	public boolean shouldPrompt(String file) {
+	boolean shouldPrompt(String file) {
 		String shouldPrompt = meta.getClientMeta(file, "prompt");
 		if (shouldPrompt.equals("")) {
 			return promptByDefault;

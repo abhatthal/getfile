@@ -22,10 +22,10 @@ public class BackupManager {
 	 * identify the backup and rollback accordingly. The identifier is simply appended
 	 * to the end of the file name. If two instances are made with the same identifier
 	 * then they will overwrite any existing backup.
-	 * @param meta			Corresponding metadata for snapshots	
+	 * @param meta			Corresponding metadata for snapshots
 	 * @param identifier	String to uniquely identify backups as a file suffix
 	 */
-	public BackupManager(MetadataHandler meta, String identifier) {
+	BackupManager(MetadataHandler meta, String identifier) {
 		// Warn user that this identifier was already created this session.
 		// We don't prevent instantiation as it simply overwrites existing backups
 		// created by another BackupManager.
@@ -45,16 +45,8 @@ public class BackupManager {
 	 * The constructor without an identifier passed assumes an empty string.
 	 * @param meta			Corresponding metadata for snapshots	
 	 */
-	public BackupManager(MetadataHandler meta) {
+	BackupManager(MetadataHandler meta) {
 		this(meta, "");
-	}
-	
-	/**
-	 * Get identifier for this backup manager
-	 * @return
-	 */
-	public final String getIdentifier() {
-		return identifier;
 	}
 	
 	/**

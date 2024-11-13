@@ -5,7 +5,6 @@ import com.google.gson.GsonBuilder;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 
-import java.net.MalformedURLException;
 import java.net.URI;
 import java.util.Set;
 
@@ -19,14 +18,14 @@ import java.io.IOException;
 /**
  * MetadataHandler handles metadata IO on server and client.
  */
-public class MetadataHandler {
+class MetadataHandler {
 	/**
 	 * Reads file metadata from server and client and writes client metadata
 	 * as new files are downloaded. Reads fresh server meta on initialization.
 	 * @param clientMetaFile	Reference to local metadata file on client
 	 * @param serverMetaURI		Link to hosted server metadata file to download
 	 */
-	public MetadataHandler(File clientMetaFile, URI serverMetaURI) {
+	MetadataHandler(File clientMetaFile, URI serverMetaURI) {
 		// Read client metadata
 		this.clientMetaFile = clientMetaFile;
 		loadClientMeta();
@@ -71,7 +70,7 @@ public class MetadataHandler {
 	 * @param key		Filedata to lookup, i.e. path, version
 	 * @return			Value corresponding to key in JSON
 	 */
-	public String getServerMeta(String file, String key) {
+	String getServerMeta(String file, String key) {
 		return getMetaImpl(file, key, serverMeta);
 	}
 
@@ -81,7 +80,7 @@ public class MetadataHandler {
 	 * @param key		Filedata to lookup, i.e. path, version
 	 * @return			Value corresponding to key in JSON
 	 */
-	public String getClientMeta(String file, String key) {
+	String getClientMeta(String file, String key) {
 		return getMetaImpl(file, key, clientMeta);
 	}
 	
@@ -89,7 +88,7 @@ public class MetadataHandler {
 	 * Get keynames for files on server
 	 * @return
 	 */
-	public Set<String> getServerFiles() {
+	Set<String> getServerFiles() {
 		return serverMeta.keySet();
 	}
 	
@@ -97,7 +96,7 @@ public class MetadataHandler {
 	 * Get keynames for files on client
 	 * @return
 	 */
-	public Set<String> getClientFiles() {
+	Set<String> getClientFiles() {
 		return clientMeta.keySet();
 	}
 	
@@ -105,7 +104,7 @@ public class MetadataHandler {
 	 * Loads client metadata from file into memory.
 	 * Can be done multiple times to load fresh changes made directly to file.
 	 */
-	public void loadClientMeta() {
+	void loadClientMeta() {
 		this.clientMeta = parseJson(clientMetaFile);	
 	}
 
@@ -113,7 +112,7 @@ public class MetadataHandler {
 	 * Get File where server metadata is cached
 	 * @return
 	 */
-	public File getServerMetaFile() {
+	File getServerMetaFile() {
 		return serverMetaFile;
 	}
 	
@@ -121,7 +120,7 @@ public class MetadataHandler {
 	 * Get File where client metadata is stored
 	 * @return
 	 */
-	public File getClientMetaFile() {
+	File getClientMetaFile() {
 		return clientMetaFile;
 	}
 	
@@ -129,7 +128,7 @@ public class MetadataHandler {
 	 * Get link where all server files in hosted metadata file are stored
 	 * @return
 	 */
-	public URI getServerPath() {
+	URI getServerPath() {
 		// Get the path part of the URI and find the last slash index
 		String path = serverMetaURI.getPath();
 		int lastSlashIndex = path.lastIndexOf('/');
@@ -156,7 +155,7 @@ public class MetadataHandler {
 	 * @param key
 	 * @param value
 	 */
-	public void setClientMeta(String file, String key, String value) {
+	void setClientMeta(String file, String key, String value) {
 		try {
 			// Update the file value in memory
 			((JsonObject) clientMeta.get(file)).addProperty(key, value);
@@ -173,7 +172,7 @@ public class MetadataHandler {
 	 * both memory and disk.
 	 * @param file	Name of new JsonObject entry
 	 */
-	public void newClientEntry(String file) {
+	void newClientEntry(String file) {
 		JsonObject newFileEntry = new JsonObject();
 		newFileEntry.addProperty("version", "");
 		// newFileEntry.addProperty("prompt", String.valueOf(promptByDefault));
@@ -184,7 +183,7 @@ public class MetadataHandler {
 	/**
 	 * Push current state of clientMeta in memory to the client meta file on disk.
 	 */
-	private void writeClientMetaState() {
+	void writeClientMetaState() {
 		Gson gson = new GsonBuilder().setPrettyPrinting().create();
 		try {
 			FileWriter writer = new FileWriter(clientMetaFile);
@@ -204,7 +203,7 @@ public class MetadataHandler {
 	 * @param meta		Which metadata to consider
 	 * @return			Value corresponding to key in JSON or empty string if not found.
 	 */
-	private String getMetaImpl(String file, String key, JsonObject meta) {
+	String getMetaImpl(String file, String key, JsonObject meta) {
 		try {
 			return ((JsonObject) meta.get(file))
 				.get(key).toString().replaceAll("\"", "");
