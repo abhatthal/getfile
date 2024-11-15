@@ -22,7 +22,7 @@ https://github.com/abhatthal/getfile-demo
 [Usage Docs](https://docs.google.com/document/d/16REHLKR8EnmaNA8ecnroxkNgfLPCNU7ZImCjIMHjJts/edit?usp=sharing) - Gradle build targets, project structure, and how to use GetFile methods.
 
 ## Downloads
-TODO
+FAT Jar: [libs/getfile-all.jar](https://github.com/abhatthal/getfile/raw/refs/heads/main/libs/getfile-all.jar) (4.2MB)
 
 ## Building
 You can build your own thin or Fat JAR file from source to use as a dependency in your application.
