@@ -1,11 +1,15 @@
 package org.scec.getfile;
 
 import java.io.File;
+import java.io.IOException;
 import java.net.URI;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.HashMap;
 import java.util.Map;
+
+import org.apache.commons.io.FileUtils;
 
 // TODO: Set up modules to make utility classes private outside JAR
 
@@ -22,7 +26,19 @@ public class GetFile {
 	 * @param serverMetaURI		Link to hosted server metadata file to download
 	 */
 	public GetFile(File clientMetaFile, URI serverMetaURI) {
-		this.meta = new MetadataHandler(clientMetaFile.getAbsoluteFile(), serverMetaURI);
+		clientMetaFile = clientMetaFile.getAbsoluteFile();
+		// Create an empty client meta file if it doesn't already exist.
+		if (!clientMetaFile.exists()) {
+			try {
+				FileUtils.writeStringToFile(
+						clientMetaFile, "{}", StandardCharsets.UTF_8);
+			} catch (IOException e) {
+				SimpleLogger.LOG(System.err,
+						"Failed to create client meta file " + clientMetaFile);
+				e.printStackTrace();
+			}
+		}
+		this.meta = new MetadataHandler(clientMetaFile, serverMetaURI);
 		this.prompter = new Prompter(meta);
 		this.backups = new HashMap<String, BackupManager>();
 	}
@@ -97,7 +113,7 @@ public class GetFile {
 		return getBackupManager("");
 		
 	}
-	private Map<String, BackupManager> backups;
-	MetadataHandler meta;
-	private Prompter prompter;
+	private final Map<String, BackupManager> backups;
+	final MetadataHandler meta;
+	private final Prompter prompter;
 }
