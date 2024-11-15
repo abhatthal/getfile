@@ -52,3 +52,6 @@ tasks.javadoc {
     destinationDir = file("$buildDir/docs")
 }
 
+shadowJar {
+	destinationDirectory = file("$rootDir/libs") // Output to libs/ at the root
+}
