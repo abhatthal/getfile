@@ -19,11 +19,10 @@ See the following demonstration of running GetFile with a local server.
 https://github.com/abhatthal/getfile-demo
 
 ## Documation
-[Usage Docs](https://docs.google.com/document/d/16REHLKR8EnmaNA8ecnroxkNgfLPCNU7ZImCjIMHjJts/edit?usp=sharing): Gradle build targets, project structure, and how to use GetFile methods.
+[Usage Docs](https://docs.google.com/document/d/16REHLKR8EnmaNA8ecnroxkNgfLPCNU7ZImCjIMHjJts/edit?usp=sharing) - Gradle build targets, project structure, and how to use GetFile methods.
 
 ## Downloads
-TODO: Provide library jar release for download and instructions for
-      setting dependency (Gradle, Maven, Ant) and invocation at main.
+TODO
 
 ## Building
 You can build your own thin or Fat JAR file from source to use as a dependency in your application.
@@ -32,7 +31,7 @@ You can build your own thin or Fat JAR file from source to use as a dependency i
 * Thin JAR is also available at `build/libs/getfile.jar`, but you must manually specify dependencies
 * In a Gradle project, you would add using `implementation files('lib/getfile-all.jar')`
 
-## Adding Files
+## Adding Files to Server
 * Create `file` on server
 * Compute MD5sum on server in same directory as file
 ```
@@ -43,8 +42,10 @@ md5sum -z file | awk '{print $1}' | tr -d '\n' > file.md5
 ```
 md5sum -z meta.json | awk '{print $1}' | tr -d '\n' > meta.json.md5
 ```
+I strongly suggest using a symbolic link structure rather than directly providing paths in the server metadata.
+See the update section for details on the structure of the server metadata and filesystem.
 
-## Updating Files
+## Updating Files on Server
 Consider the following example server metadata `meta.json`
 ```
 {
@@ -62,6 +63,7 @@ With the following server filesystem:
 ```
 .
 ├── meta.json
+├── meta.json.md5
 └── models/
     ├── model1/
     │   ├── model.zip (symlink => v0.1.2/model.zip)
@@ -93,6 +95,7 @@ In such a system, you can update model1 as follows:
 
 .
 ├── meta.json
+├── meta.json.md5
 └── models/
     ├── model1/
     │   ├── model.zip (symlink => v0.1.3/model.zip)
@@ -109,15 +112,13 @@ In such a system, you can update model1 as follows:
         └── v1.0.0/
             └── model.zip
 ```
+Make sure to regenerate the MD5sums `(model1.zip.md5, meta.json.md5)` or downloads will fail due to inability to validate checksums.
 You can delete older versions as we run out of space, or keep them for as long as you'd like.
-The client will overwrite the previous model1 (Either None, v0.1.1, or v0.1.2) at `$ClientRoot/models/model1/model.zip` with v0.1.3.
+The client will overwrite the previous model1 (Either None, v0.1.1, or v0.1.2) at `${ClientRoot}/models/model1/model.zip` with v0.1.3.
 
 File trees generated via https://tree.nathanfriend.com/
 
 ## Deleting Files
-TODO: Explain how to remove files from server and stop clients from searching for these changes.
+Continuing with the above example filesystem and metadata structure, we can simply delete the folder containing the old data.
+If we are deleting the current latest version (i.e. rollback to older version), then take care to update the MD5sums accordingly.
 
-TODO: Update library to prompt users to delete local files when removed from server and update local configuration accordingly.
-
-## Notable Apps
-TODO: Mention how OpenSHA utilizes GetFile and provide a link to the corresponding code.
