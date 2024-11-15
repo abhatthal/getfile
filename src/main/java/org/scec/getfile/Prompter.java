@@ -1,6 +1,5 @@
 package org.scec.getfile;
 
-// TODO
 /**
  * Prompt a user with a graphical pane to update a file. Contains logic for if
  * a prompt should occur for a given file.

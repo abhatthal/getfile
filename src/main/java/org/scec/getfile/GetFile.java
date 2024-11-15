@@ -11,8 +11,6 @@ import java.util.Map;
 
 import org.apache.commons.io.FileUtils;
 
-// TODO: Set up modules to make utility classes private outside JAR
-
 /**
  * A GetFile instance contains all the logic required
  * to download and validate a file if a new version exists.
