@@ -26,10 +26,14 @@ the application directly.
 [libs/getfile-all.jar](https://github.com/abhatthal/getfile/raw/refs/heads/main/libs/getfile-all.jar) (4.2MB)
 
 ## Documentation
-TODO:
- * Create docs/ overview
- * Move examples and file server modification instructions into docs/
- * Finish migrating [Google Docs](https://docs.google.com/document/d/16REHLKR8EnmaNA8ecnroxkNgfLPCNU7ZImCjIMHjJts/edit?tab=t.0#heading=h.w7ag3cxatgix) into docs
+* [api/getfile](docs/api/getfile.md) - How to use GetFile class with examples
+* [api/backupmanager.md](docs/api/backupmanager.md) - How to use BackupManager with examples
+* [javadoc](docs/javadoc.md) - How to build API documentation from code
+* [project_structure](docs/project_structure.md) - High-level of how the source code is organized
+* [server_config](docs/server_config.md) - How to structure server data for GetFile
+* [testing](docs/testing.md) - Get started with unit tests in Gradle
+ 
+TODO: Move server operation docs in README into docs/
 
 ## Future Plans
 * Add the ability to skip versions
