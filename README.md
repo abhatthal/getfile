@@ -122,3 +122,6 @@ File trees generated via https://tree.nathanfriend.com/
 Continuing with the above example filesystem and metadata structure, we can simply delete the folder containing the old data.
 If we are deleting the current latest version (i.e. rollback to older version), then take care to update the MD5sums accordingly.
 
+If you intend to remove an entry altogether, you should delete the entry from the corresponding server metadata file and delete all the corresponding data files. This will stop clients from searching for these files, however it won't be deleted on the client's system. Additionally, if you change the path of an existing entry and increment the version, you'll have duplicates at a new path on the client.
+
+If dealing with very large files, the current solution is to manually delete such files. Otherwise, ignoring them shouldn't have any consequence. The challenge in always deleting the files, is that the path data is stored on the server. We could deprecate entries or otherwise mark them as deleted, but removing them altogether would cause us to lose the corresponding path to delete at. We also don't want to duplicate server path data on the client as conflicts become likely. We may consider a more elegant solution in a future version of GetFile if there is a need.
