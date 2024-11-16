@@ -84,8 +84,37 @@ public class BackupManager {
 			SimpleLogger.LOG(System.err, "No backup snapshot found for rollback");
 			return 1;
 		}
-		int status = 0;
         File clientMetaFile = meta.getClientMetaFile();
+		int status = 0;
+		// Delete files found in current meta that don't have a backup
+        for (String file : meta.getClientFiles()) {
+        	Path path = Paths.get(
+        			clientMetaFile.getParent(),
+        			meta.getServerMeta(file, "path"));
+			File savLoc = path.toFile();
+			File bakLoc = new File(path.toString().concat(identifier));
+			if (savLoc.exists() && !bakLoc.exists()) {
+				savLoc.delete();
+			}
+        }
+        // Rollback the local meta itself
+        File clientMetaBak = new File(clientMetaFile.getPath().concat(identifier));
+        if (clientMetaFile.exists() && clientMetaBak.exists()) {
+        	try {
+        		clientMetaFile.delete();
+				FileUtils.moveFile(clientMetaBak, clientMetaFile);
+				SimpleLogger.LOG(System.out, "rolled back local meta");
+        	} catch (IOException e) {
+				SimpleLogger.LOG(System.err, "Failed to read local meta files");
+				e.printStackTrace();
+				status = 1;
+        	}
+        } else {
+				SimpleLogger.LOG(System.err, "Failed to rollback local meta");
+				status = 1;
+        }
+        // Load the client meta into memory
+        meta.loadClientMeta();
 		// Iterate over the local files to potentially rollback.
         for (String file : meta.getClientFiles()) {
         	Path path = Paths.get(
@@ -119,24 +148,6 @@ public class BackupManager {
 			}
         }
         deleteEmptyDirs(Paths.get(clientMetaFile.getParent()));
-        // Rollback the local meta itself
-        File clientMetaBak = new File(clientMetaFile.getPath().concat(identifier));
-        if (clientMetaFile.exists() && clientMetaBak.exists()) {
-        	try {
-        		clientMetaFile.delete();
-				FileUtils.moveFile(clientMetaBak, clientMetaFile);
-				SimpleLogger.LOG(System.out, "rolled back local meta");
-        	} catch (IOException e) {
-				SimpleLogger.LOG(System.err, "Failed to read local meta files");
-				e.printStackTrace();
-				status = 1;
-        	}
-        } else {
-				SimpleLogger.LOG(System.err, "Failed to rollback local meta");
-				status = 1;
-        }
-        // Load the client meta into memory
-        meta.loadClientMeta();
         return status;
 	}
 	
