@@ -64,6 +64,16 @@ public class BackupManager {
 	}
 	
 	/**
+	 * Returns true if there exists a backup for current identifier.
+	 * @return
+	 */
+	public boolean backupExists() {
+        File metaBak = new File(
+        		meta.getClientMetaFile().getPath().concat(identifier));
+		return metaBak.exists();
+	}
+	
+	/**
 	 * Rollback to state when backup was last invoked.
 	 * A rollback consumes the backup, requiring a second backup to rollback
 	 * with the same BackupManager instance.
@@ -171,16 +181,6 @@ public class BackupManager {
 			SimpleLogger.LOG(System.out, "Root directory not found " + directory);
 			e.printStackTrace();
 		}	
-	}
-	
-	/**
-	 * Returns true if there exists a backup for current identifier.
-	 * @return
-	 */
-	private boolean backupExists() {
-        File metaBak = new File(
-        		meta.getClientMetaFile().getPath().concat(identifier));
-		return metaBak.exists();
 	}
 	
 	private final String identifier;
