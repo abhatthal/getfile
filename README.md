@@ -18,8 +18,11 @@ GetFile is a subtle nod to GetDown (https://github.com/threerings/getdown), whic
 See the following demonstration of running GetFile with a local server.
 https://github.com/abhatthal/getfile-demo
 
-## Documation
-[Usage Docs](https://docs.google.com/document/d/16REHLKR8EnmaNA8ecnroxkNgfLPCNU7ZImCjIMHjJts/edit?usp=sharing) - Gradle build targets, project structure, and how to use GetFile methods.
+## Docs
+TODO:
+	* Create docs/ overview
+	* Move examples and file server modification instructions into docs/
+	* Finish migrating [Google Docs](https://docs.google.com/document/d/16REHLKR8EnmaNA8ecnroxkNgfLPCNU7ZImCjIMHjJts/edit?tab=t.0#heading=h.w7ag3cxatgix) into docs
 
 ## Downloads
 FAT Jar: [libs/getfile-all.jar](https://github.com/abhatthal/getfile/raw/refs/heads/main/libs/getfile-all.jar) (4.2MB)
