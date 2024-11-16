@@ -14,12 +14,16 @@ Creates backup files of all the files in the current client metadata for the
 given GetFile instance, as well as the client metadata itself. Each backup has
 a unique suffix as specified via the identifier to prevent conflicts across
 multiple BackupManagers.
-`bm.backup();`
+```
+bm.backup();
+```
 
 ## public boolean backupExists()
 Returns true if backup() has already been invoked for the given BackupManager.
 This method leverages the backup files to check for backups across sessions.
-`bm.backupExists()`
+```
+bm.backupExists();
+```
 
 ## public int rollback()
 Rolls back to the client state when the backup method was invoked. Does nothing
@@ -30,5 +34,7 @@ directories that were created in the process would be subsequently deleted. Do
 note that rollback logic requires that the server path to the file still exist.
 If a file entry was removed from the server (which shouldn’t occur), then we’d
 be unable to successfully rollback that file.
-`bm1.rollback();`
+```
+bm1.rollback();
+```
 

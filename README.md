@@ -30,7 +30,7 @@ the application directly.
 * [api/backupmanager.md](docs/api/backupmanager.md) - How to use BackupManager with examples
 * [javadoc](docs/javadoc.md) - How to build API documentation from code
 * [project_structure](docs/project_structure.md) - High-level of how the source code is organized
-* [server_config](docs/server_config.md) - How to structure server data for GetFile
+* [server_config](docs/server_config.md) - How to structure server data for GetFile with examples
 * [testing](docs/testing.md) - Get started with unit tests in Gradle
  
 TODO: Move server operation docs in README into docs/

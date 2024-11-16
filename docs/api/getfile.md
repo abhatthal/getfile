@@ -37,7 +37,9 @@ updateFile with the unique file key. Files are determined to be new by
 comparing the serverMeta versions with the clientMeta versions. If an entry for
 a file is not found in the clientMeta, then a new entry is made and the file is
 downloaded.
-`gf.updateAll();`
+```
+gf.updateAll();
+```
 
 ## public void updateFile(String file)
 The file key uniquely identifies a file on the server and maps to the
@@ -46,7 +48,9 @@ serverMeta and should also be found in the clientMeta, otherwise it’s assumed
 to not exist and will update with a new entry. Note that this file key may be
 different from the name of the file and could even include spaces and
 characters not typically permissible for a file name.
-`gf.updateFile("data");`
+```
+gf.updateFile("data");
+```
 
 ## public BackupManager getBackupManager(String identifier)
 Gets or creates an instance of BackupManager. This is the only way
@@ -54,11 +58,15 @@ to create a BackupManager, as the constructor is package-private. Each instance
 of GetFile may have 0 or more BackupManagers, and each such BackupManager must
 be managed through their respective GetFile instance via the getBackupManager
 method. The String identifier is concatenated to the end of the backup.
-`BackupManager bm1 = gf.getBackupManager("1");`
-The above example would operate on backup files ending in `.bak-1`.
+The following example would operate on backup files ending in `.bak-1`.
+```
+BackupManager bm1 = gf.getBackupManager("1");
+```
 
 ## public BackupManager getBackupManager()
 Invokes getBackupManager with an empty string identifier. Such backup files will
 simply end in `.bak`.
-`BackupManager bm = gf.getBackupManager();`
+```
+BackupManager bm = gf.getBackupManager();
+```
 
