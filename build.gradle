@@ -53,5 +53,7 @@ tasks.javadoc {
 }
 
 shadowJar {
-	destinationDirectory = file("$rootDir/libs") // Output to libs/ at the root
+	// Build JAR files at libs/ with `gradle shadowJar`
+	archiveClassifier.set("")
+	destinationDirectory = file("$rootDir/libs")
 }
