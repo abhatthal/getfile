@@ -22,7 +22,7 @@ server, so duplicate files would occur if paths were to change across versions.
 The following example filesystem has two separate projects with files tracked through GetFile.
 
 The first project has one large JSON file tracking all of its files. The second project is much more complex, and benefits from breaking the data into multiple JSON files. 
-
+```
 .
 └── projects/
     ├── project1/
@@ -77,6 +77,7 @@ The first project has one large JSON file tracking all of its files. The second 
                     └── v24.11/
                         ├── finances.xlsx
                         └── [
+```
 
 File tree generated via [tree.nathanfriend.com](https://shorturl.at/YbDRk)
 
