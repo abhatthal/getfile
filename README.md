@@ -1,7 +1,8 @@
 # GetFile
 
-GetFile is a simple yet powerful Java library to keep files up to date on client systems.
-Host your own files (i.e. data, code, anything really) over HTTP(S) and attribute a version to each file on the client and server.
+GetFile is a simple yet powerful Java library to keep files up to date on
+client systems.  Host your own files (i.e. data, code, anything really) over
+HTTP(S) and attribute a version to each file on the client and server.
 
 
 When invoked in your application, GetFile will
@@ -9,23 +10,40 @@ When invoked in your application, GetFile will
 * optionally prompt or silently continue on a per-file basis
 * download newer files when available
 * validate downloads for corruption
-* provide logic to rollback updates (See sections below for integration with your app)
+* provide logic to rollback updates
 
 
-GetFile is a subtle nod to GetDown (https://github.com/threerings/getdown), which is used to update Java applications themselves. GetDown wraps the application and allows you to update seamlessly to newer versions hosted on your own server. This requires updating the entire application, code and data included, and must wrap around a main class. GetFile was created for greater flexibility versioning any files, inside the codebase or anywhere on the client's computer, without wrapping a main class but instead being invoked by the application directly.
+GetFile is a subtle nod to GetDown (https://github.com/threerings/getdown),
+which is used to update Java applications themselves. GetDown wraps the
+application and allows you to update seamlessly to newer versions hosted on
+your own server. This requires updating the entire application, code and data
+included, and must wrap around a main class. GetFile was created for greater
+flexibility versioning any files, inside the codebase or anywhere on the
+client's computer, without wrapping a main class but instead being invoked by
+the application directly.
 
-## Demo
-See the following demonstration of running GetFile with a local server.
-https://github.com/abhatthal/getfile-demo
+## Download
+[libs/getfile-all.jar](https://github.com/abhatthal/getfile/raw/refs/heads/main/libs/getfile-all.jar) (4.2MB)
 
-## Docs
+## Documentation
 TODO:
  * Create docs/ overview
  * Move examples and file server modification instructions into docs/
  * Finish migrating [Google Docs](https://docs.google.com/document/d/16REHLKR8EnmaNA8ecnroxkNgfLPCNU7ZImCjIMHjJts/edit?tab=t.0#heading=h.w7ag3cxatgix) into docs
 
-## Downloads
-FAT Jar: [libs/getfile-all.jar](https://github.com/abhatthal/getfile/raw/refs/heads/main/libs/getfile-all.jar) (4.2MB)
+## Future Plans
+* Add the ability to skip versions
+* Implement per-file prompting.
+* Enable server file entry deletion
+  * Need to duplicate serverPath in a clientPath located inside the respective client metadata file.
+  * Add logic for what to do when an existing clientPath does not match the specified serverPath.
+    In this case we want to move the file to the new serverPath.
+    Current behavior is to duplicate the file if a new version is released with a different serverPath.
+  * Can deprecate entries in current version by making new version with empty file and parsing logic.
+
+## Demo
+See the following demonstration of running GetFile with a local server.
+https://github.com/abhatthal/getfile-demo
 
 ## Building
 You can build your own thin or Fat JAR file from source to use as a dependency in your application.
@@ -115,16 +133,32 @@ In such a system, you can update model1 as follows:
         └── v1.0.0/
             └── model.zip
 ```
-Make sure to regenerate the MD5sums `(model1.zip.md5, meta.json.md5)` or downloads will fail due to inability to validate checksums.
-You can delete older versions as we run out of space, or keep them for as long as you'd like.
-The client will overwrite the previous model1 (Either None, v0.1.1, or v0.1.2) at `${ClientRoot}/models/model1/model.zip` with v0.1.3.
+Make sure to regenerate the MD5sums `(model1.zip.md5, meta.json.md5)` or
+downloads will fail due to inability to validate checksums.  You can delete
+older versions as we run out of space, or keep them for as long as you'd like.
+The client will overwrite the previous model1 (Either None, v0.1.1, or v0.1.2)
+at `${ClientRoot}/models/model1/model.zip` with v0.1.3.
 
 File trees generated via https://tree.nathanfriend.com/
 
-## Deleting Files
-Continuing with the above example filesystem and metadata structure, we can simply delete the folder containing the old data.
-If we are deleting the current latest version (i.e. rollback to older version), then take care to update the MD5sums accordingly.
+## Deleting Files from Server
+Continuing with the above example filesystem and metadata structure, we can
+simply delete the folder containing the old data.  If we are deleting the
+current latest version (i.e. rollback to older version), then take care to
+update the MD5sums accordingly.
 
-If you intend to remove an entry altogether (Not recommended), you would delete the entry from the corresponding server metadata file and delete all the corresponding data files. This will stop clients from searching for these files, however it won't be deleted on the client's system. Additionally, if you change the path of an existing entry and increment the version, you'll have duplicates at a new path on the client. This could also break any existing client snapshots that depend on a file's path.
+If you intend to remove an entry altogether (Not recommended), you would delete
+the entry from the corresponding server metadata file and delete all the
+corresponding data files. This will stop clients from searching for these
+files, however it won't be deleted on the client's system. Additionally, if you
+change the path of an existing entry and increment the version, you'll have
+duplicates at a new path on the client. This could also break any existing
+client snapshots that depend on a file's path.
 
-If dealing with very large files, the current solution is to manually delete such files. Otherwise, ignoring them shouldn't have any consequence. The challenge in always deleting the files, is that the path data is stored on the server. We could deprecate entries or otherwise mark them as deleted, but removing them altogether would cause us to lose the corresponding path to delete at. We also don't want to duplicate server path data on the client as conflicts become likely. We may consider a more elegant solution in a future version of GetFile if there is a need.
+If dealing with very large files, the current solution is to manually delete
+such files. Otherwise, ignoring them shouldn't have any consequence. The
+challenge in always deleting the files, is that the path data is stored on the
+server. We could deprecate entries or otherwise mark them as deleted, but
+removing them altogether would cause us to lose the corresponding path to
+delete at. We will add file entry deletion support in a future release.
+
