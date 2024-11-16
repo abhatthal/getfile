@@ -27,7 +27,7 @@ the application directly.
 
 ## Documentation
 * [api/getfile](docs/api/getfile.md) - How to use GetFile class with examples
-* [api/backupmanager.md](docs/api/backupmanager.md) - How to use BackupManager with examples
+* [api/backupmanager](docs/api/backupmanager.md) - How to use BackupManager with examples
 * [javadoc](docs/javadoc.md) - How to build API documentation from code
 * [project_structure](docs/project_structure.md) - High-level of how the source code is organized
 * [server_config](docs/server_config.md) - How to structure server data for GetFile with examples
