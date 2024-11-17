@@ -72,10 +72,12 @@ public class GetFileTest {
                 {
                   "file1": {
                     "version": "v0.1.1",
+                    "path": "data/file11.txt",
                     "prompt": "true"
                   },
                   "file2": {
                     "version": "v1.0.0",
+                    "path": "data/file2.txt",
                     "prompt": "false"
                   }
                 }
@@ -85,7 +87,7 @@ public class GetFileTest {
         try {
 			FileUtils.writeStringToFile(clientMetaFile, new Gson().toJson(clientMeta), "UTF-8");
 			FileUtils.writeStringToFile(
-					new File(clientRoot+"data/file1.txt"), "Hi! I'm file1 at v0.1.1.\n", "UTF-8");
+					new File(clientRoot+"data/file11.txt"), "Hi! I'm file1 at v0.1.1.\n", "UTF-8");
 			FileUtils.writeStringToFile(
 					new File(clientRoot+"data/file2.txt"), "Hi! I'm file2 at v1.0.0.\n", "UTF-8");
 			File f3 = new File(clientRoot+"data/file3");

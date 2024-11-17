@@ -2,7 +2,6 @@ package org.scec.getfile;
 
 import java.io.File;
 import java.io.IOException;
-import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.HashSet;
@@ -147,7 +146,7 @@ public class BackupManager {
 				e.printStackTrace();
 			}
         }
-        deleteEmptyDirs(Paths.get(clientMetaFile.getParent()));
+        DeleteFile.deleteEmptyDirs(Paths.get(clientMetaFile.getParent()));
         return status;
 	}
 	
@@ -167,32 +166,6 @@ public class BackupManager {
 		}
 	}
 	
-	/**
-	 * Recursively delete all empty directories inside dir.
-	 * This is necessary to delete empty directories left after file deletions
-	 * inside a rollback.
-	 * @param directory
-	 */
-	private void deleteEmptyDirs(Path directory) {
-		try {
-			Files.walk(directory)
-			.filter(Files::isDirectory)
-			.sorted((p1, p2) -> p2.getNameCount() - p1.getNameCount()) // Deepest directories first
-			.forEach(dir -> {
-			    try {
-			        if (Files.list(dir).findAny().isEmpty()) {
-			            Files.delete(dir);
-			            SimpleLogger.LOG(System.out, "Deleted empty directory: " + dir);
-			        }
-			    } catch (IOException e) {
-					SimpleLogger.LOG(System.out, "Error deleting directory " + dir + ": " + e.getMessage());
-			    }
-			});
-		} catch (IOException e) {
-			SimpleLogger.LOG(System.out, "Root directory not found " + directory);
-			e.printStackTrace();
-		}	
-	}
 	
 	private final String identifier;
 	private static final Set<String> identifiers = new HashSet<>();

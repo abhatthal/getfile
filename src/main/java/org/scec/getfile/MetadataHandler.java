@@ -175,6 +175,7 @@ class MetadataHandler {
 	void newClientEntry(String file) {
 		JsonObject newFileEntry = new JsonObject();
 		newFileEntry.addProperty("version", "");
+		newFileEntry.addProperty("path", getServerMeta(file, "path"));
 		// newFileEntry.addProperty("prompt", String.valueOf(promptByDefault));
 		clientMeta.add(file, newFileEntry);
 		writeClientMetaState();

@@ -59,14 +59,15 @@ public class GetFile {
 	public void updateFile(String file) {
 		final String serverVersion = meta.getServerMeta(file, "version");
 		final String clientVersion = meta.getClientMeta(file, "version");
+		// Create the file entry if it doesn't already exist
+		if (clientVersion.equals("")) {
+			meta.newClientEntry(file);
+		}
+		updatePath(file);
 		if (clientVersion.equals(serverVersion)) {
 			SimpleLogger.LOG(System.out,
 					"File " + file + " is already up to date.");
 			return;
-		}
-		// Create the file entry if it doesn't already exist
-		if (clientVersion.equals("")) {
-			meta.newClientEntry(file);
 		}
 		boolean shouldPrompt = prompter.shouldPrompt(file);
 		if ((shouldPrompt && prompter.promptDownload(file)) || !shouldPrompt) {
@@ -75,7 +76,7 @@ public class GetFile {
 			// Download and validate the new file from the server
 			Path downloadLoc = Paths.get(
 					meta.getClientMetaFile().getParent(),
-					meta.getServerMeta(file, "path"));
+					meta.getClientMeta(file, "path"));
 			URI serverLoc = URI.create(
 					meta.getServerPath().toString().concat(
 							meta.getServerMeta(file, "path")));
@@ -109,6 +110,39 @@ public class GetFile {
 	 */
 	public BackupManager getBackupManager() {
 		return getBackupManager("");
+		
+	}
+	
+	/**
+	 * If the serverPath and clientPath mismatch, then the file location was
+	 * updated and the client file location should be updated accordingly.
+	 * Invoked in updateFile regardless of if file is outdated.
+	 * @param file		Name of file key in metadata
+	 */
+	private void updatePath(String file) {
+		String serverPath = meta.getServerMeta(file, "path");
+		String clientPath = meta.getClientMeta(file, "path");
+		if (clientPath.equals(serverPath)) {
+			return;
+		}
+		String root = meta.getClientMetaFile().getParent();
+		File oldLoc = new File(root, clientPath);
+		File newLoc = new File(root, serverPath);
+		if (oldLoc.exists()) {
+			try {
+				FileUtils.moveFile(oldLoc, newLoc);
+				meta.setClientMeta(file, "path", serverPath);
+				SimpleLogger.LOG(System.out,
+						"Updated " + file + " path " + oldLoc + " => " + newLoc);
+				if (oldLoc.getParent() != null) {
+					DeleteFile.deleteIfEmpty(Paths.get(oldLoc.getParent()));
+				}
+			} catch (IOException e) {
+				SimpleLogger.LOG(System.err,
+						"Failed to update file path " + oldLoc + " => " + newLoc);
+				e.printStackTrace();
+			}
+		}
 		
 	}
 	private final Map<String, BackupManager> backups;

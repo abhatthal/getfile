@@ -52,8 +52,17 @@ tasks.javadoc {
     destinationDir = file("$buildDir/docs")
 }
 
-shadowJar {
-	// Build JAR files at libs/ with `gradle shadowJar`
-	archiveClassifier.set("")
-	destinationDirectory = file("$rootDir/libs")
+tasks.jar {
+    destinationDirectory.set(file("$rootDir/libs"))
 }
+shadowJar {
+	destinationDirectory.set(file("$rootDir/libs"))
+}
+
+// `gradle build` will update API docs and build fresh JARs.
+// Make sure to update the `libs.json` to update GetFile version.
+// Once an updated version is available, clients may update to latest version.
+tasks.build {
+	dependsOn(tasks.jar, tasks.shadowJar, tasks.javadoc)
+}
+
