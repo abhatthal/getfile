@@ -69,6 +69,7 @@ public class GetFileTest {
                         .withBodyFile("meta.json.md5")));
         
         // Create client resources
+        // Intentional typo file11 to demonstrate path mismatch logic
         String clientMetaStr = """
                 {
                   "file1": {
