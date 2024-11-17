@@ -38,12 +38,6 @@ TODO: Move server operation docs in README into docs/
 ## Future Plans
 * Add the ability to skip versions
 * Implement per-file prompting.
-* Enable server file entry deletion
-  * Need to duplicate serverPath in a clientPath located inside the respective client metadata file.
-  * Add logic for what to do when an existing clientPath does not match the specified serverPath.
-    In this case we want to move the file to the new serverPath.
-    Current behavior is to duplicate the file if a new version is released with a different serverPath.
-  * Can deprecate entries in current version by making new version with empty file and parsing logic.
 
 ## Demo
 See the following demonstration of running GetFile with a local server.
@@ -149,20 +143,11 @@ File trees generated via https://tree.nathanfriend.com/
 Continuing with the above example filesystem and metadata structure, we can
 simply delete the folder containing the old data.  If we are deleting the
 current latest version (i.e. rollback to older version), then take care to
-update the MD5sums accordingly.
+update the MD5sums accordingly. Deleting the server file entry altogether will
+result in the client deleting the corresponding file and its client file entry.
 
-If you intend to remove an entry altogether (Not recommended), you would delete
-the entry from the corresponding server metadata file and delete all the
-corresponding data files. This will stop clients from searching for these
-files, however it won't be deleted on the client's system. Additionally, if you
-change the path of an existing entry and increment the version, you'll have
-duplicates at a new path on the client. This could also break any existing
-client snapshots that depend on a file's path.
-
-If dealing with very large files, the current solution is to manually delete
-such files. Otherwise, ignoring them shouldn't have any consequence. The
-challenge in always deleting the files, is that the path data is stored on the
-server. We could deprecate entries or otherwise mark them as deleted, but
-removing them altogether would cause us to lose the corresponding path to
-delete at. We will add file entry deletion support in a future release.
+Checks for deleted file entries only occur when the `updateAll` method is invoked.
+It would otherwise be unnecessarily expensive to iterate over all files for an
+`updateFile` invocation. It also would be illogical to delete files unrelated to
+the given `updateFile(file)` call.
 

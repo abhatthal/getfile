@@ -182,6 +182,17 @@ class MetadataHandler {
 	}
 	
 	/**
+	 * Delete from JsonObject. Used in DeleteFile class.
+	 * @param file	Name of file entry
+	 */
+	void deleteClientEntry(String file) {
+		if (clientMeta.has(file)) {
+			clientMeta.remove(file);
+		}
+		writeClientMetaState();
+	}
+	
+	/**
 	 * Push current state of clientMeta in memory to the client meta file on disk.
 	 */
 	void writeClientMetaState() {

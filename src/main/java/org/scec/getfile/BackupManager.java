@@ -57,7 +57,7 @@ public class BackupManager {
         for (String file : meta.getClientFiles()) {
         	Path path = Paths.get(
         			meta.getClientMetaFile().getParent(),
-        			meta.getServerMeta(file, "path"));
+        			meta.getClientMeta(file, "path"));
 			backupFile(path.toFile());
         }
 	}
@@ -89,7 +89,7 @@ public class BackupManager {
         for (String file : meta.getClientFiles()) {
         	Path path = Paths.get(
         			clientMetaFile.getParent(),
-        			meta.getServerMeta(file, "path"));
+        			meta.getClientMeta(file, "path"));
 			File savLoc = path.toFile();
 			File bakLoc = new File(path.toString().concat(identifier));
 			if (savLoc.exists() && !bakLoc.exists()) {
@@ -118,7 +118,7 @@ public class BackupManager {
         for (String file : meta.getClientFiles()) {
         	Path path = Paths.get(
         			clientMetaFile.getParent(),
-        			meta.getServerMeta(file, "path"));
+        			meta.getClientMeta(file, "path"));
         	try {
 				File savLoc = path.toFile();
 				File bakLoc = new File(path.toString().concat(identifier));

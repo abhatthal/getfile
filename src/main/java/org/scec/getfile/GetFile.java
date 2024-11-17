@@ -50,6 +50,7 @@ public class GetFile {
         for (String file : meta.getServerFiles()) {
         	updateFile(file);
         }
+		new DeleteFile(meta).deleteMissingFiles();
 	}
 	
 	/**

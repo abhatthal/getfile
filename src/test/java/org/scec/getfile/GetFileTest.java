@@ -24,6 +24,7 @@ import com.google.gson.JsonParser;
 
 /** TODO: Implement these tests
  *   changedPath: Behavior when an existing file on server has its path changed (data and metadata)
+ *   deletedFile: Handling of when a file entry is deleted from the server
  *   multipleBackups: Test multiple concurrent backup managers. Each should work and can't overwrite each other.
  *   noClientDataUpdate: Test update logic when there is no client data or client metadata file 
  * 	 noClientDataBackup: Test backup logic when there’s no client data to backup
@@ -79,6 +80,11 @@ public class GetFileTest {
                     "version": "v1.0.0",
                     "path": "data/file2.txt",
                     "prompt": "false"
+                  },
+                  "file4": {
+                    "version": "v1.0.0",
+                    "path": "data/file4.txt",
+                    "prompt": "false"
                   }
                 }
                 """;
@@ -90,10 +96,8 @@ public class GetFileTest {
 					new File(clientRoot+"data/file11.txt"), "Hi! I'm file1 at v0.1.1.\n", "UTF-8");
 			FileUtils.writeStringToFile(
 					new File(clientRoot+"data/file2.txt"), "Hi! I'm file2 at v1.0.0.\n", "UTF-8");
-			File f3 = new File(clientRoot+"data/file3");
-			if (f3.exists()) {
-				f3.delete();
-			}
+			FileUtils.writeStringToFile(
+					new File(clientRoot+"data/file4.txt"), "Hi! I'm file4 at v1.0.0.\n", "UTF-8");
 		} catch (IOException e) {
 			e.printStackTrace();
 		}
@@ -136,6 +140,7 @@ public class GetFileTest {
 	public void currentVersion() {
 		assertEquals(meta.getClientMeta("file1", "version"), "v0.1.1");
 		assertEquals(meta.getClientMeta("file2", "version"), "v1.0.0");
+		assertEquals(meta.getClientMeta("file4", "version"), "v1.0.0");
 	}
 	
 	/**
@@ -147,6 +152,7 @@ public class GetFileTest {
 		// Ensure initial state of local meta
 		assertEquals(meta.getClientMeta("file1", "version"), "v0.1.1");
 		assertEquals(meta.getClientMeta("file2", "version"), "v1.0.0");
+		assertEquals(meta.getClientMeta("file4", "version"), "v1.0.0");
 		// Initial state of file data
 		assertEquals(FileUtils.readFileToString(
 				new File(clientRoot+"data/file2.txt"), "utf-8"),
@@ -157,6 +163,7 @@ public class GetFileTest {
 		// Local meta should be updated
 		assertEquals(meta.getClientMeta("file1", "version"), "v0.1.1");
 		assertEquals(meta.getClientMeta("file2", "version"), "v1.3.1");
+		assertEquals(meta.getClientMeta("file4", "version"), "");
 		// Updated file data
 		assertEquals(FileUtils.readFileToString(
 				new File(clientRoot+"data/file2.txt"), "utf-8"),
@@ -166,6 +173,7 @@ public class GetFileTest {
 		// Local meta should be back at initial state
 		assertEquals(meta.getClientMeta("file1", "version"), "v0.1.1");
 		assertEquals(meta.getClientMeta("file2", "version"), "v1.0.0");
+		assertEquals(meta.getClientMeta("file4", "version"), "v1.0.0");
 		// also reverted file data to initial state
 		assertEquals(FileUtils.readFileToString(
 				new File(clientRoot+"data/file2.txt"), "utf-8"),
