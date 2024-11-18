@@ -39,7 +39,7 @@ the application directly.
 * Implement per-file prompting.
 
 ## Demo
-See the following demonstration of running GetFile with a local server.
+Demonstrations of how to leverage the GetFile lib in your application.
 https://github.com/abhatthal/getfile-demo
 
 ## Building
