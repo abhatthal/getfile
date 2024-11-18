@@ -11,6 +11,7 @@ When invoked in your application, GetFile will
 * download newer files when available
 * validate downloads for corruption
 * provide logic to rollback updates
+* be able to self-update for bug fixes and new features (See Demos section)
 
 
 GetFile is a subtle nod to GetDown (https://github.com/threerings/getdown),
@@ -38,7 +39,7 @@ the application directly.
 * Add the ability to skip versions
 * Implement per-file prompting.
 
-## Demo
+## Demos
 Demonstrations of how to leverage the GetFile lib in your application.
 
 https://github.com/abhatthal/getfile-demo
