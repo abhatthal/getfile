@@ -31,23 +31,54 @@ relationship. If two serverMeta JSON files track a file with the same path and
 name, then they could overwrite each other when downloaded. Writing multiple
 instances to the same directory creates a race condition and should be avoided.
 
-## public void updateAll()
+## public Map<String, List<File>> updateAll()
 Iterate over all the files found in the serverMeta and invoke
 updateFile with the unique file key. Files are determined to be new by
 comparing the serverMeta versions with the clientMeta versions. If an entry for
 a file is not found in the clientMeta, then a new entry is made and the file is
 downloaded.
+
+updateAll returns a mapping of a string to a list of File objects.
+An example return mapping looks as follows:
+```
+{
+	"updated": [File1, File3, ...],
+	"unchanged": [File2, File4, File5, ...]
+}
+```
+The purpose of this mapping is to distinguish between updated and unchanged files.
+The corresponding File objects are mutable and can be used to find the paths to
+the files on the client system.
+
+Example invocation:
 ```
 gf.updateAll();
 ```
 
-## public void updateFile(String file)
+## public Pair<Boolean, File> updateFile(String fileKey)
 The file key uniquely identifies a file on the server and maps to the
 corresponding version and where to download. This value is found in the
 serverMeta and should also be found in the clientMeta, otherwise it’s assumed
 to not exist and will update with a new entry. Note that this file key may be
 different from the name of the file and could even include spaces and
 characters not typically permissible for a file name.
+
+updateFile returns a Pair with the left value being true if the file was
+successfully updated (version changed) and the right value being a reference to
+the file on the client system. If the file is not found, this reference will be null.
+
+Pair is part of the Apache Commons Lang3 specification and is imported in client
+code as follows:
+```
+import org.apache.commons.lang3.tuple.Pair;
+```
+
+An example return value is as follows:
+```
+(true, File3)
+```
+
+Example invocation:
 ```
 gf.updateFile("data");
 ```
@@ -69,4 +100,12 @@ simply end in `.bak`.
 ```
 BackupManager bm = gf.getBackupManager();
 ```
+
+## public static final String LATEST_JAR_URL
+This String contains the URI to the JSON metadata for the latest version of
+the GetFile Jar and Fat Jar files. It can be used with an existing GetFile instance
+to get the latest version of GetFile. This enables clients to self-update.
+We store this version as a static constant in the GetFile class directly to ensure
+clients are always calling the correct endpoint, as it is subject to change.
+See [demo3](demos/demo3) for an example of how this constant is utilized.
 

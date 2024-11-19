@@ -33,6 +33,8 @@ dependencies {
 	implementation 'commons-io:commons-io:2.17.0'
 	// https://mvnrepository.com/artifact/commons-codec/commons-codec
 	implementation 'commons-codec:commons-codec:1.17.1'
+	// https://mvnrepository.com/artifact/org.apache.commons/commons-lang3
+	implementation 'org.apache.commons:commons-lang3:3.17.0'
 }
 
 // Apply a specific Java toolchain to ease working on different environments.
