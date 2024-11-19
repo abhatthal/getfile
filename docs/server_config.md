@@ -75,8 +75,7 @@ The first project has one large JSON file tracking all of its files. The second 
                     ├── finances.xlsx (symlink => v24.11)
                     ├── finances.xlsx.md5
                     └── v24.11/
-                        ├── finances.xlsx
-                        └── [
+                        └── finances.xlsx
 ```
 
 File tree generated via [tree.nathanfriend.com](https://shorturl.at/YbDRk)
