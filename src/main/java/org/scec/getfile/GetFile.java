@@ -146,7 +146,17 @@ public class GetFile {
 		}
 		
 	}
-	private final Map<String, BackupManager> backups;
+
+	/**
+	 * Store the current URL where the latest code is found. This allows us to update
+	 * the endpoint without manually editing each client that invokes GetFile for self-updating.
+	 */
+	public static final String LATEST_JAR_URL =
+			"https://raw.githubusercontent.com/abhatthal/getfile/refs/heads/main/libs/libs.json";
+	// GetFile metadata is stored in MetadataHandler to pass data into utility classes.
 	final MetadataHandler meta;
+	// Each GetFile instance can have multiple concurrent backups. 1-many relationship via Map.
+	private final Map<String, BackupManager> backups;
+	// Each GetFile instance has its own Prompter with default user prompting behavior.
 	private final Prompter prompter;
 }
