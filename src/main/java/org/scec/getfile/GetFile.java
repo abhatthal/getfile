@@ -40,7 +40,6 @@ public class GetFile {
 				e.printStackTrace();
 			}
 		}
-		// TODO: Check to see if serverMetaURI is a valid JSON
 		this.meta = new MetadataHandler(clientMetaFile, serverMetaURI);
 		this.prompter = new Prompter(meta);
 		this.backups = new HashMap<String, BackupManager>();
