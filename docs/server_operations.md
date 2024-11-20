@@ -10,12 +10,12 @@ how we can do this as necessary for the GetFile client-side logic parsing.
 * Create `file` on server
 * Compute MD5sum on server in same directory as file
 ```
-md5sum -z file | awk '{print $1}' | tr -d '\n' > file.md5
+md5sum file | awk '{print $1}' | tr -d '\n' > file.md5
 ```
 * Create entry on server `meta.json` with version and path of new file
 * Compute MD5sum on server for meta.json.
 ```
-md5sum -z meta.json | awk '{print $1}' | tr -d '\n' > meta.json.md5
+md5sum meta.json | awk '{print $1}' | tr -d '\n' > meta.json.md5
 ```
 I strongly suggest using a symbolic link structure rather than directly providing paths in the server metadata.
 See the update section for details on the structure of the server metadata and filesystem.
