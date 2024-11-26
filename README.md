@@ -51,3 +51,7 @@ You can build your own thin or Fat JAR file from source to use as a dependency i
 * Thin JAR is also available at `libs/getfile.jar`, but you must manually specify dependencies
 * In a Gradle project, you would add using `implementation files('libs/getfile-all.jar')`
 
+## Projects using GetFile
+### [OpenSHA](https://github.com/opensha/opensha)
+GetFile will serve earthquake hazard models inside the OpenSHA framework.
+See details about how GetFile will be used on SCECpedia at https://strike.scec.org/scecpedia/GetFile.
