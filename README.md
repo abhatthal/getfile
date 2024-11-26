@@ -24,7 +24,7 @@ client's computer, without wrapping a main class but instead being invoked by
 the application directly.
 
 ## Download
-[libs/getfile-all.jar](https://github.com/abhatthal/getfile/raw/refs/heads/main/libs/getfile-all.jar) (4.2MB)
+[libs/getfile-all.jar](https://github.com/abhatthal/getfile/raw/refs/heads/main/libs/getfile-all.jar) (5.1MB)
 
 ## Documentation
 * [api/getfile](docs/api/getfile.md) - How to use GetFile class with examples
