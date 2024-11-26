@@ -6,6 +6,7 @@ import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 
 import java.net.URI;
+import java.util.HashSet;
 import java.util.Set;
 
 import org.apache.commons.io.FileUtils;
@@ -38,29 +39,36 @@ class MetadataHandler {
 				clientMetaFile.getParent(), serverMetaFileName);
 		File freshServerMetaFile = new File(
 				clientMetaFile.getParent(), "." + serverMetaFileName);
-		Downloader.downloadFile(serverMetaURI,
+		int downloadStatusCode = Downloader.downloadFile(serverMetaURI,
 				freshServerMetaFile.toPath(), /*retries=*/3);
-		try {
-			// Proceed with download if no cache hit
-			if (!cachedServerMetaFile.exists() ||
-				!FileUtils.contentEquals(
-						cachedServerMetaFile, freshServerMetaFile)) {
-				// Overwrite cache with fresh data
-				if (cachedServerMetaFile.exists()) {
-					FileUtils.delete(cachedServerMetaFile);
-				}
-				FileUtils.moveFile(freshServerMetaFile, cachedServerMetaFile);
-				SimpleLogger.LOG(System.out, "New files are available to download.");
-			} else {
-				FileUtils.delete(freshServerMetaFile);
-				SimpleLogger.LOG(System.out, "No new files found.");
+		if (downloadStatusCode == 1) {
+			SimpleLogger.LOG(System.err, "Failed to download server metadata at " + serverMetaURI);
+			if (freshServerMetaFile.exists()) {
+				freshServerMetaFile.delete();
 			}
-		} catch (IOException e) {
-			SimpleLogger.LOG(System.err, "IOException reading cache");
-			this.serverMeta = null;
-			e.printStackTrace();
+		} else {
+			try {
+				// Proceed with download if no cache hit
+				if (!cachedServerMetaFile.exists() ||
+					!FileUtils.contentEquals(
+							cachedServerMetaFile, freshServerMetaFile)) {
+					// Overwrite cache with fresh data
+					if (cachedServerMetaFile.exists()) {
+						FileUtils.delete(cachedServerMetaFile);
+					}
+					FileUtils.moveFile(freshServerMetaFile, cachedServerMetaFile);
+					SimpleLogger.LOG(System.out, "New files are available to download.");
+				} else {
+					FileUtils.delete(freshServerMetaFile);
+					SimpleLogger.LOG(System.out, "No new files found.");
+				}
+			} catch (IOException e) {
+				SimpleLogger.LOG(System.err, "IOException reading cache");
+				this.serverMeta = null;
+				e.printStackTrace();
+			}
 		}
-		this.serverMetaFile = cachedServerMetaFile;
+		this.serverMetaFile = cachedServerMetaFile.exists() ? cachedServerMetaFile : null;
 		this.serverMeta = parseJson(serverMetaFile);
 	}
 
@@ -89,6 +97,9 @@ class MetadataHandler {
 	 * @return
 	 */
 	Set<String> getServerFiles() {
+		if (serverMeta == null) {
+			return new HashSet<String>();
+		}
 		return serverMeta.keySet();
 	}
 	
@@ -97,6 +108,9 @@ class MetadataHandler {
 	 * @return
 	 */
 	Set<String> getClientFiles() {
+		if (clientMeta == null) {
+			return new HashSet<String>();
+		}
 		return clientMeta.keySet();
 	}
 	
@@ -236,6 +250,7 @@ class MetadataHandler {
             // Parse JSON content as a JsonObject
             return JsonParser.parseReader(reader).getAsJsonObject();
         } catch (IOException e) {
+        	SimpleLogger.LOG(System.err, "Unable to parse JSON for " + file.getName());
             e.printStackTrace();
         }
         return null;
