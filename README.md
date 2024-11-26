@@ -1,8 +1,10 @@
 # GetFile
 
 GetFile is a simple yet powerful Java library to keep files up to date on
-client systems.  Host your own files (i.e. data, code, anything really) over
-HTTP(S) and attribute a version to each file on the client and server.
+client systems. Host your own files (i.e. data, code, anything really) and
+attribute a version to each file on the client and server. Fully open-source
+client-side logic for validation on simple file servers ensures a secure and
+reliable method for file updates.
 
 
 When invoked in your application, GetFile will
