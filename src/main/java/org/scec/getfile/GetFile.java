@@ -105,11 +105,14 @@ public class GetFile {
 			URI serverLoc = URI.create(
 					meta.getServerPath().toString().concat(
 							meta.getServerMeta(fileKey, "path")));
-			Downloader.downloadFile(serverLoc, downloadLoc);
-			// Update the client meta version accordingly
-			meta.setClientMeta(fileKey, "version", serverVersion);
-			return ImmutablePair.of(true, file);
+			int status = Downloader.downloadFile(serverLoc, downloadLoc);
+			if (status == 0) {
+				// Update the client meta version accordingly
+				meta.setClientMeta(fileKey, "version", serverVersion);
+				return ImmutablePair.of(true, file);
+			}
 		}
+		SimpleLogger.LOG(System.err, "Failed to download " + fileKey);
 		return ImmutablePair.of(false, file);
 	}
 	

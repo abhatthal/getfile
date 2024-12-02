@@ -46,7 +46,7 @@ class Downloader {
 		File dwnLoc = new File(saveLocation.toString().concat(".part"));
 		try {
 			FileUtils.copyURLToFile(uri.toURL(), dwnLoc,
-					/*connectionTimeoutMillis=*/1000, /*readTimeoutMillis=*/1000);
+					/*connectionTimeoutMillis=*/5000, /*readTimeoutMillis=*/5000);
 			 // Calculate the MD5 checksum of the downloaded file
 			String calculatedMd5 =
 					DigestUtils.md5Hex(Files.newInputStream(dwnLoc.toPath()));
