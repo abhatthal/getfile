@@ -64,7 +64,7 @@ class Downloader {
 			SimpleLogger.LOG(System.err, "MD5 validation failed for " + uri);
 			return 1;
 		} catch (IOException e) {
-			SimpleLogger.LOG(System.err, "Unable to connect to server");
+			SimpleLogger.LOG(System.err, "Failed to download " + uri);
 			if (dwnLoc.exists()) {
 				dwnLoc.delete();
 			}
