@@ -6,6 +6,7 @@ import java.net.HttpURLConnection;
 import java.net.MalformedURLException;
 import java.net.URI;
 import java.util.concurrent.TimeUnit;
+import java.lang.Math;
 
 /**
  * The ProgressTracker updates a CalcProgressBar with download data.
@@ -64,33 +65,28 @@ class ProgressTracker {
 			meta.getClientMetaFile().getParent(),
 			meta.getClientMeta(fileKey, "path"));
 		File partial = new File(file.toString().concat(".part"));
-		System.out.println(file + " " + partial);
-		
-		try {
-			// Wait for 5 seconds for partial to be created. If download takes
-			// longer than 5 seconds, then we should show progress bar.
-			TimeUnit.SECONDS.sleep(3);
-		} catch (InterruptedException e) {
-			 Thread.currentThread().interrupt();
-		}
-		while (partial.exists()) {
-			long count = partial.length();
+		progress.setVisible(true);
+		while (true) {
+			long count = partial.exists() ? partial.length() : 0;
 			progress.updateProgress(count, total,
-					count/1000+" of "+total/1000+" MB downloaded");
+					fileKey + ": " +
+					(int)Math.round(count/1e6) + " of " +
+					(int)Math.round(total/1e6) + " MB downloaded");
 			try {
 				// Sleep for a short duration to periodically check the file size
 				 TimeUnit.SECONDS.sleep(1);
+				 // Exit loop after download finishes
+				 if (count == total && file.exists() && !partial.exists()) {
+					 break;
+				 }
 			 } catch (InterruptedException e) {
 				 Thread.currentThread().interrupt();
 				 break;
 			 }
 		}
-		if (file.exists() && !partial.exists()) {
-			progress.setVisible(false);
-		}
-		
+		progress.setVisible(false);
+		progress.dispose();
 	}
-
 	
 	private MetadataHandler meta;
 }

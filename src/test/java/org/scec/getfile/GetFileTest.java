@@ -123,7 +123,10 @@ public class GetFileTest {
         URI serverMetaURI = URI.create("http://localhost:8088/meta.json");
 		getfile = new GetFile(
 					/*name=*/this.getClass().getName(),
-					clientMetaFile, serverMetaURI);
+					clientMetaFile,
+					serverMetaURI,
+					/*showProgress=*/false,
+					/*ignoreErrors=*/true);
 		meta = getfile.meta;
 		backupManager = getfile.getBackupManager();
 	}
@@ -376,6 +379,5 @@ public class GetFileTest {
 		assertEquals(getfile.tracker.getFileSize("file2"), 25);
 		assertEquals(getfile.tracker.getFileSize("file3"), 25);
 	}
-
 	
 }

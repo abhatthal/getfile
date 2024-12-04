@@ -59,7 +59,7 @@ public class GetFile {
 		this.meta = new MetadataHandler(clientMetaFile, serverMetaURI);
 		this.prompter = new Prompter(meta);
 		this.showProgress = showProgress;
-		this.tracker = showProgress ? new ProgressTracker(meta) : null;
+		this.tracker = new ProgressTracker(meta);
 		this.ignoreErrors = ignoreErrors;
 		this.backups = new HashMap<String, BackupManager>();
 	}
@@ -68,7 +68,7 @@ public class GetFile {
 		this(name, clientMetaFile, serverMetaURI,
 				/*showProgress=*/true, /*ignoreErrors=*/true);
 	}
-
+	
 	/**
 	 * Update all local files using new server files.
 	 * This will force an update regardless of if there are any changes.
@@ -102,8 +102,6 @@ public class GetFile {
 	public Pair<Boolean, File> updateFile(String fileKey) {
 		final String serverVersion = meta.getServerMeta(fileKey, "version");
 		final String clientVersion = meta.getClientMeta(fileKey, "version");
-		final CalcProgressBar progress = new CalcProgressBar(
-				"Downloading " + name + " Files", "downloading " + fileKey);
 		// Handle if file doesn't exist on server
 		if (serverVersion.equals("")) {
 			SimpleLogger.LOG(System.err,
@@ -127,15 +125,13 @@ public class GetFile {
 			ExecutorService executor = Executors.newSingleThreadExecutor();
 			try {
 				if (showProgress) {
-					progress.setVisible(true);
-					executor.submit(() -> tracker.updateProgress(fileKey, progress));
+					executor.submit(() -> tracker.updateProgress(fileKey,
+							new CalcProgressBar(
+									"Downloading " + name + " Files",
+									"downloading " + fileKey)));
 				}
 			} catch (Exception e) {
-				if (progress != null) {
-					// not headless
-					progress.setVisible(false);
-					progress.dispose();
-				}
+				SimpleLogger.LOG(System.err, "Failed to create progress bar");
 			} finally {
 				executor.shutdown();
 			}
