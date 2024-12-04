@@ -1,6 +1,6 @@
 # Project Structure
 
-The GetFile project is comprised of 8 classes, 2 of which are accessible
+The GetFile project is comprised of 9 classes, 2 of which are accessible
 outside the packaged JAR and end-users may interact with.
 Only the GetFile and BackupManager classes are declared publicly and can be
 imported into projects. All other classes are package-private.
