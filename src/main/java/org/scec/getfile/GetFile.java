@@ -64,11 +64,6 @@ public class GetFile {
 		this.backups = new HashMap<String, BackupManager>();
 	}
 	
-	public GetFile(String name, File clientMetaFile, URI serverMetaURI) {
-		this(name, clientMetaFile, serverMetaURI,
-				/*showProgress=*/true, /*ignoreErrors=*/true);
-	}
-	
 	/**
 	 * Update all local files using new server files.
 	 * This will force an update regardless of if there are any changes.
