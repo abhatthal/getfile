@@ -1,6 +1,6 @@
 # Project Structure
 
-The GetFile project is comprised of 7 classes, 2 of which are accessible
+The GetFile project is comprised of 8 classes, 2 of which are accessible
 outside the packaged JAR and end-users may interact with.
 Only the GetFile and BackupManager classes are declared publicly and can be
 imported into projects. All other classes are package-private.
@@ -9,6 +9,8 @@ imported into projects. All other classes are package-private.
 * `public BackupManager` - Create and restore snapshots
 * `MetadataHandler` - Keep track of file versions
 * `Prompter` - Prompts user if they want to download a new file
+* `CalcProgressBar` - General utility progress bar dialog. (Dup from [OpenSHA](https://github.com/opensha/opensha))
+* `ProgressTracker` - Updates a CalcProgressBar with download status
 * `static Downloader` - Just the logic for validated downloads
 * `static SimpleLogger` - Logs "Class.Method: message" to stdout or stderr
 * `static DeleteFile` - Logic for deletion of files/directories

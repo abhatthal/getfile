@@ -2,19 +2,28 @@ package org.scec.getfile;
 
 import java.io.File;
 import java.io.IOException;
+
 import java.net.HttpURLConnection;
 import java.net.MalformedURLException;
 import java.net.URI;
+
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+
 import java.util.Map;
 import java.util.HashMap;
 import java.util.List;
 import java.util.ArrayList;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
+
+import javax.swing.JOptionPane;
 
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.lang3.tuple.Pair;
+import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.apache.commons.lang3.tuple.ImmutablePair;
 
 /**
@@ -26,10 +35,14 @@ public class GetFile {
 	/**
 	 * Constructor establishes connection with server and parses local and
 	 * server file metadata into memory.
+	 * @param name				Name of GetFile instance
 	 * @param clientMetaFile	Reference to local metadata file on client
 	 * @param serverMetaURI		Link to hosted server metadata file to download
+	 * @param showProgress		Show download progress in CalcProgressBar
+	 * @param ignoreErrors		Throw runtime exception or just return null
 	 */
-	public GetFile(File clientMetaFile, URI serverMetaURI) {
+	public GetFile(String name, File clientMetaFile, URI serverMetaURI,
+			boolean showProgress, boolean ignoreErrors) {
 		clientMetaFile = clientMetaFile.getAbsoluteFile();
 		// Create an empty client meta file if it doesn't already exist.
 		if (!clientMetaFile.exists()) {
@@ -42,11 +55,20 @@ public class GetFile {
 				e.printStackTrace();
 			}
 		}
+		this.name = name;
 		this.meta = new MetadataHandler(clientMetaFile, serverMetaURI);
 		this.prompter = new Prompter(meta);
+		this.showProgress = showProgress;
+		this.tracker = showProgress ? new ProgressTracker(meta) : null;
+		this.ignoreErrors = ignoreErrors;
 		this.backups = new HashMap<String, BackupManager>();
 	}
 	
+	public GetFile(String name, File clientMetaFile, URI serverMetaURI) {
+		this(name, clientMetaFile, serverMetaURI,
+				/*showProgress=*/true, /*ignoreErrors=*/true);
+	}
+
 	/**
 	 * Update all local files using new server files.
 	 * This will force an update regardless of if there are any changes.
@@ -71,50 +93,6 @@ public class GetFile {
 	}
 	
 	/**
-	 * Gets the size of a file on server in bytes.
-	 * This is useful for applications to track download progress on updateFile.
-	 * @param fileKey	Key in server metadata corresponding to server file
-	 * @return			size in bytes or 0 if not found
-	 */
-	public long getFileSize(String fileKey) {
-		final String path = meta.getServerMeta(fileKey, "path");
-		if (path.equals("")) {
-			SimpleLogger.LOG(System.err,
-					"File key \"" + fileKey + "\" does not exist in server meta");
-			return 0;
-		}
-		URI serverLoc = URI.create(
-				meta.getServerPath().toString().concat(
-						meta.getServerMeta(fileKey, "path")));
-		try {
-			HttpURLConnection connection =
-					(HttpURLConnection)serverLoc.toURL().openConnection();
-			connection.setRequestMethod("HEAD");
-			return connection.getContentLengthLong();
-		} catch (MalformedURLException e) {
-			SimpleLogger.LOG(System.err, "URL is invalid " + serverLoc);
-			e.printStackTrace();
-		} catch (IOException e) {
-			SimpleLogger.LOG(System.err, "Could not read " + serverLoc);
-			e.printStackTrace();
-		}
-		return 0;
-	}
-	
-	/**
-	 * Gets the sum of the file size for all files in the server metadata.
-	 * Used to track download progress on updateAll.
-	 * @return
-	 */
-	public long getTotalSumFileSize() {
-		long sum = 0;
-        for (String fileKey : meta.getServerFiles()) {
-        	sum += getFileSize(fileKey);
-        }
-		return sum;
-	}
-	
-	/**
 	 * Updates a specific file.
 	 * A file is considered updated if the version is changed.
 	 * Path changes are not considered an update.
@@ -124,6 +102,8 @@ public class GetFile {
 	public Pair<Boolean, File> updateFile(String fileKey) {
 		final String serverVersion = meta.getServerMeta(fileKey, "version");
 		final String clientVersion = meta.getClientMeta(fileKey, "version");
+		final CalcProgressBar progress = new CalcProgressBar(
+				"Downloading " + name + " Files", "downloading " + fileKey);
 		// Handle if file doesn't exist on server
 		if (serverVersion.equals("")) {
 			SimpleLogger.LOG(System.err,
@@ -140,8 +120,25 @@ public class GetFile {
 					"File \"" + fileKey + "\" is already up to date.");
 			return ImmutablePair.of(false, file);
 		}
+		// Begin download with optional user prompting
 		boolean shouldPrompt = prompter.shouldPrompt(fileKey);
 		if ((shouldPrompt && prompter.promptDownload(fileKey)) || !shouldPrompt) {
+			// Start a monitoring thead to track download progress
+			ExecutorService executor = Executors.newSingleThreadExecutor();
+			try {
+				if (showProgress) {
+					progress.setVisible(true);
+					executor.submit(() -> tracker.updateProgress(fileKey, progress));
+				}
+			} catch (Exception e) {
+				if (progress != null) {
+					// not headless
+					progress.setVisible(false);
+					progress.dispose();
+				}
+			} finally {
+				executor.shutdown();
+			}
 			SimpleLogger.LOG(System.out,
 					"Update " + fileKey + " " + clientVersion + " => " + serverVersion);
 			// Download and validate the new file from the server
@@ -159,6 +156,11 @@ public class GetFile {
 			}
 		}
 		SimpleLogger.LOG(System.err, "Failed to download " + fileKey);
+		if (!ignoreErrors) {
+			String message = "Error downloading "+fileKey+".\nServer down or file moved, try again later.";
+			JOptionPane.showMessageDialog(null, message, "Download Error", JOptionPane.ERROR_MESSAGE);
+			throw new RuntimeException("Failed to download file!");
+		}
 		return ImmutablePair.of(false, file);
 	}
 	
@@ -193,12 +195,12 @@ public class GetFile {
 	 * If the serverPath and clientPath mismatch, then the file location was
 	 * updated and the client file location should be updated accordingly.
 	 * Invoked in updateFile regardless of if file is outdated.
-	 * @param file		Name of file key in metadata
+	 * @param fileKey		Name of file key in metadata
 	 * @return File object with updated or unchanged path
 	 */
-	private File updatePath(String file) {
-		String serverPath = meta.getServerMeta(file, "path");
-		String clientPath = meta.getClientMeta(file, "path");
+	private File updatePath(String fileKey) {
+		String serverPath = meta.getServerMeta(fileKey, "path");
+		String clientPath = meta.getClientMeta(fileKey, "path");
 		String root = meta.getClientMetaFile().getParent();
 		File oldLoc = new File(root, clientPath);
 		File newLoc = new File(root, serverPath);
@@ -208,9 +210,9 @@ public class GetFile {
 		if (oldLoc.exists()) {
 			try {
 				FileUtils.moveFile(oldLoc, newLoc);
-				meta.setClientMeta(file, "path", serverPath);
+				meta.setClientMeta(fileKey, "path", serverPath);
 				SimpleLogger.LOG(System.out,
-						"Updated " + file + " path " + oldLoc + " => " + newLoc);
+						"Updated " + fileKey + " path " + oldLoc + " => " + newLoc);
 				if (oldLoc.getParent() != null) {
 					DeleteFile.deleteIfEmpty(Paths.get(oldLoc.getParent()));
 				}
@@ -222,17 +224,22 @@ public class GetFile {
 		}
 		return newLoc;
 	}
-
+	
 	/**
 	 * Store the current URL where the latest code is found. This allows us to update
 	 * the endpoint without manually editing each client that invokes GetFile for self-updating.
 	 */
 	public static final String LATEST_JAR_URL =
 			"https://raw.githubusercontent.com/abhatthal/getfile/refs/heads/main/libs/libs.json";
+	final String name;
 	// GetFile metadata is stored in MetadataHandler to pass data into utility classes.
 	final MetadataHandler meta;
 	// Each GetFile instance can have multiple concurrent backups. 1-many relationship via Map.
 	private final Map<String, BackupManager> backups;
+	// Show users the progress of their downloads
+	final ProgressTracker tracker;
+	private final boolean showProgress;
+	private final boolean ignoreErrors;
 	// Each GetFile instance has its own Prompter with default user prompting behavior.
 	private final Prompter prompter;
 }

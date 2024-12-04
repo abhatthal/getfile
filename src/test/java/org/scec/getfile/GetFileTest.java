@@ -121,7 +121,9 @@ public class GetFileTest {
 			e.printStackTrace();
 		}
         URI serverMetaURI = URI.create("http://localhost:8088/meta.json");
-		getfile = new GetFile(clientMetaFile, serverMetaURI);
+		getfile = new GetFile(
+					/*name=*/this.getClass().getName(),
+					clientMetaFile, serverMetaURI);
 		meta = getfile.meta;
 		backupManager = getfile.getBackupManager();
 	}
@@ -370,10 +372,9 @@ public class GetFileTest {
 	 */
 	@Test
 	public void serverFileSizes() {
-		assertEquals(getfile.getFileSize("file1"), 25);
-		assertEquals(getfile.getFileSize("file2"), 25);
-		assertEquals(getfile.getFileSize("file3"), 25);
-		assertEquals(getfile.getTotalSumFileSize(), 75);
+		assertEquals(getfile.tracker.getFileSize("file1"), 25);
+		assertEquals(getfile.tracker.getFileSize("file2"), 25);
+		assertEquals(getfile.tracker.getFileSize("file3"), 25);
 	}
 
 	
