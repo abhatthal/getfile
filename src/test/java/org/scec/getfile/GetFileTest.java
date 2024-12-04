@@ -6,6 +6,8 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import static com.github.tomakehurst.wiremock.client.WireMock.aResponse;
 import static com.github.tomakehurst.wiremock.client.WireMock.get;
+import static com.github.tomakehurst.wiremock.client.WireMock.head;
+import static com.github.tomakehurst.wiremock.client.WireMock.urlEqualTo;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.AfterEach;
@@ -68,6 +70,21 @@ public class GetFileTest {
                 .willReturn(aResponse()
                 		.withStatus(200)
                         .withBodyFile("meta.json.md5")));
+        wireMockServer.stubFor(head(urlEqualTo("/data/file1.txt"))
+                .willReturn(aResponse()
+                    .withHeader("Content-Type", "application/octet-stream")
+                    .withHeader("Content-Length", "25")
+                    .withStatus(200)));
+        wireMockServer.stubFor(head(urlEqualTo("/data/file2.txt"))
+                .willReturn(aResponse()
+                    .withHeader("Content-Type", "application/octet-stream")
+                    .withHeader("Content-Length", "25")
+                    .withStatus(200)));
+        wireMockServer.stubFor(head(urlEqualTo("/data/file3/file3.txt"))
+                .willReturn(aResponse()
+                    .withHeader("Content-Type", "application/octet-stream")
+                    .withHeader("Content-Length", "25")
+                    .withStatus(200)));
         
         // Create client resources
         // Intentional typo file11 to demonstrate path mismatch logic
@@ -347,4 +364,17 @@ public class GetFileTest {
 		assertEquals(meta.getClientMeta("file2", "version"), "v1.3.1");
 		assertEquals(meta.getClientMeta("file3", "version"), "");
 	}	
+	
+	/**
+	 * Verify ability to get size of files on server
+	 */
+	@Test
+	public void serverFileSizes() {
+		assertEquals(getfile.getFileSize("file1"), 25);
+		assertEquals(getfile.getFileSize("file2"), 25);
+		assertEquals(getfile.getFileSize("file3"), 25);
+		assertEquals(getfile.getTotalSumFileSize(), 75);
+	}
+
+	
 }

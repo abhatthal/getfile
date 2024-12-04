@@ -2,6 +2,8 @@ package org.scec.getfile;
 
 import java.io.File;
 import java.io.IOException;
+import java.net.HttpURLConnection;
+import java.net.MalformedURLException;
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
@@ -66,6 +68,52 @@ public class GetFile {
 					: "unchanged").add(pair.getRight());
         }
         return result;
+	}
+	
+	/**
+	 * Gets the size of a file on server in bytes.
+	 * This is useful for applications to track download progress on updateFile.
+	 * @param fileKey	Key in server metadata corresponding to server file
+	 * @return			size in bytes or 0 if not found
+	 */
+	public long getFileSize(String fileKey) {
+		final String path = meta.getServerMeta(fileKey, "path");
+		if (path.equals("")) {
+			SimpleLogger.LOG(System.err,
+					"File key \"" + fileKey + "\" does not exist in server meta");
+			return 0;
+		}
+		URI serverLoc = URI.create(
+				meta.getServerPath().toString().concat(
+						meta.getServerMeta(fileKey, "path")));
+		System.out.println(serverLoc);
+		try {
+			HttpURLConnection connection =
+					(HttpURLConnection)serverLoc.toURL().openConnection();
+			connection.setRequestMethod("HEAD");
+			System.out.println(connection);
+			return connection.getContentLengthLong();
+		} catch (MalformedURLException e) {
+			SimpleLogger.LOG(System.err, "URL is invalid " + serverLoc);
+			e.printStackTrace();
+		} catch (IOException e) {
+			SimpleLogger.LOG(System.err, "Could not read " + serverLoc);
+			e.printStackTrace();
+		}
+		return 0;
+	}
+	
+	/**
+	 * Gets the sum of the file size for all files in the server metadata.
+	 * Used to track download progress on updateAll.
+	 * @return
+	 */
+	public long getTotalSumFileSize() {
+		long sum = 0;
+        for (String fileKey : meta.getServerFiles()) {
+        	sum += getFileSize(fileKey);
+        }
+		return sum;
 	}
 	
 	/**
