@@ -86,12 +86,10 @@ public class GetFile {
 		URI serverLoc = URI.create(
 				meta.getServerPath().toString().concat(
 						meta.getServerMeta(fileKey, "path")));
-		System.out.println(serverLoc);
 		try {
 			HttpURLConnection connection =
 					(HttpURLConnection)serverLoc.toURL().openConnection();
 			connection.setRequestMethod("HEAD");
-			System.out.println(connection);
 			return connection.getContentLengthLong();
 		} catch (MalformedURLException e) {
 			SimpleLogger.LOG(System.err, "URL is invalid " + serverLoc);
