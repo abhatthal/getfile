@@ -65,9 +65,23 @@ class ProgressTracker {
 			meta.getClientMetaFile().getParent(),
 			meta.getClientMeta(fileKey, "path"));
 		File partial = new File(file.toString().concat(".part"));
+		// Wait until partial is built with 2s timeout
+		for (int i = 0; i < 20; i++) {
+			if (partial.exists()) {
+				break;
+			}
+			try {
+				 TimeUnit.MILLISECONDS.sleep(100);
+			 } catch (InterruptedException e) {
+				 Thread.currentThread().interrupt();
+				 break;
+			 }
+		}
 		progress.setVisible(true);
-		while (true) {
-			long count = partial.exists() ? partial.length() : 0;
+		long count = 0;
+		// Show progress until download is complete
+		while (partial.exists()) {
+			count = partial.length();
 			progress.updateProgress(count, total,
 					fileKey + ": " +
 					(int)Math.round(count/1e6) + " of " +
@@ -76,9 +90,6 @@ class ProgressTracker {
 				// Sleep for a short duration to periodically check the file size
 				 TimeUnit.SECONDS.sleep(1);
 				 // Exit loop after download finishes
-				 if (count == total && file.exists() && !partial.exists()) {
-					 break;
-				 }
 			 } catch (InterruptedException e) {
 				 Thread.currentThread().interrupt();
 				 break;
