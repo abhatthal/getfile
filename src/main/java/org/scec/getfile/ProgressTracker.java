@@ -152,7 +152,8 @@ class ProgressTracker {
 			SwingUtilities.invokeLater(() -> progress.setVisible(true));
 			worker.execute();
 		} else {
-			SimpleLogger.LOG(System.err, "Download took too long to start. Not showing progress bar.");
+			SwingUtilities.invokeLater(() -> progress.setVisible(false));
+			SimpleLogger.LOG(System.err, "Download either finished or hasn't started within timeout. Not showing progress bar.");
 		}
 	}
 	
