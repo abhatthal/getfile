@@ -16,6 +16,7 @@ import org.junit.jupiter.api.Test;
 import java.io.File;
 import java.io.IOException;
 import java.net.URI;
+import java.util.concurrent.ExecutionException;
 
 import org.apache.commons.io.FileUtils;
 
@@ -170,9 +171,11 @@ public class GetFileTest {
 	/**
 	 * Ensure outdated files are successfully updated and can be rolled back
 	 * @throws IOException 
+	 * @throws ExecutionException 
+	 * @throws InterruptedException 
 	 */
 	@Test
-	public void updateAll() throws IOException {
+	public void updateAll() throws IOException, InterruptedException, ExecutionException {
 		// Ensure initial state of local meta
 		assertEquals(meta.getClientMeta("file1", "version"), "v0.1.1");
 		assertEquals(meta.getClientMeta("file2", "version"), "v1.0.0");
@@ -183,7 +186,7 @@ public class GetFileTest {
 				"Hi! I'm file2 at v1.0.0.\n");
 		// Update files and meta from server
 		backupManager.backup();
-		getfile.updateAll();
+		getfile.updateAll().get();
 		// Local meta should be updated
 		assertEquals(meta.getClientMeta("file1", "version"), "v0.1.1");
 		assertEquals(meta.getClientMeta("file2", "version"), "v1.3.1");
@@ -207,9 +210,11 @@ public class GetFileTest {
 	/**
 	 * Attempting to update multiple times shouldn't corrupt backups
 	 * @throws IOException
+	 * @throws ExecutionException 
+	 * @throws InterruptedException 
 	 */
 	@Test
-	public void multipleUpdateAll() throws IOException {
+	public void multipleUpdateAll() throws IOException, InterruptedException, ExecutionException {
 		// Ensure initial state of local meta
 		assertEquals(meta.getClientMeta("file1", "version"), "v0.1.1");
 		assertEquals(meta.getClientMeta("file2", "version"), "v1.0.0");
@@ -219,7 +224,7 @@ public class GetFileTest {
 				"Hi! I'm file2 at v1.0.0.\n");
 		// Update files and meta from server
 		backupManager.backup();
-		getfile.updateAll();
+		getfile.updateAll().get();
 		// Local meta should be updated
 		assertEquals(meta.getClientMeta("file1", "version"), "v0.1.1");
 		assertEquals(meta.getClientMeta("file2", "version"), "v1.3.1");
@@ -228,9 +233,10 @@ public class GetFileTest {
 				new File(clientRoot+"data/file2.txt"), "utf-8"),
 				"Hi! I'm file2 at v1.3.1.\n");
 		// Update as many times as we want. No change to state or backups.
-		getfile.updateAll();
-		getfile.updateAll();
-		getfile.updateAll();
+		getfile.updateAll().get();
+		getfile.updateAll().get();
+		getfile.updateAll().get();
+		// Local meta should be updated
 		assertEquals(meta.getClientMeta("file1", "version"), "v0.1.1");
 		assertEquals(meta.getClientMeta("file2", "version"), "v1.3.1");
 		assertEquals(FileUtils.readFileToString(
@@ -273,14 +279,16 @@ public class GetFileTest {
 	/**
 	 * Downloads a new file not found in client meta when found on server
 	 * @throws IOException
+	 * @throws ExecutionException 
+	 * @throws InterruptedException 
 	 */
 	@Test
-	public void newFile() throws IOException {
+	public void newFile() throws IOException, InterruptedException, ExecutionException {
 		assertEquals(meta.getClientMeta("file3", "version"), "");
 		assertEquals(meta.getServerMeta("file3", "version"), "v0.1.2");
 		assertFalse(new File(clientRoot+"data/file3").exists());
 		backupManager.backup();
-		getfile.updateAll();
+		getfile.updateAll().get();
 		assertEquals(meta.getClientMeta("file3", "version"), "v0.1.2");
 		assertEquals(meta.getServerMeta("file3", "version"), "v0.1.2");
 		assertTrue(new File(clientRoot+"data/file3").exists());
@@ -298,13 +306,14 @@ public class GetFileTest {
 	 * @throws IOException
 	 */
 	@Test
-	public void updateIndividualFiles() throws IOException {
+	public void updateIndividualFiles()
+			throws IOException, InterruptedException, ExecutionException {
 		// Just update file3
 		assertEquals(meta.getClientMeta("file1", "version"), "v0.1.1");
 		assertEquals(meta.getClientMeta("file2", "version"), "v1.0.0");
 		assertEquals(meta.getClientMeta("file3", "version"), "");
 		backupManager.backup();
-		getfile.updateFile("file3");
+		getfile.updateFile("file3").get();
 		// file3 is updated but file2 is still outdated.
 		assertEquals(meta.getClientMeta("file1", "version"), "v0.1.1");
 		assertEquals(meta.getClientMeta("file2", "version"), "v1.0.0");
@@ -318,7 +327,7 @@ public class GetFileTest {
 		assertEquals(meta.getClientMeta("file2", "version"), "v1.0.0");
 		assertEquals(meta.getClientMeta("file3", "version"), "");
 		backupManager.backup();
-		getfile.updateFile("file3");
+		getfile.updateFile("file3").get();
 		// file3 is updated but file2 is still outdated.
 		assertEquals(meta.getClientMeta("file1", "version"), "v0.1.1");
 		assertEquals(meta.getClientMeta("file2", "version"), "v1.0.0");
@@ -332,7 +341,7 @@ public class GetFileTest {
 		assertEquals(meta.getClientMeta("file2", "version"), "v1.0.0");
 		assertEquals(meta.getClientMeta("file3", "version"), "");
 		backupManager.backup();
-		getfile.updateFile("file2");
+		getfile.updateFile("file2").get();
 		// file3 not downloaded and file2 is updated
 		assertEquals(meta.getClientMeta("file1", "version"), "v0.1.1");
 		assertEquals(meta.getClientMeta("file2", "version"), "v1.3.1");
@@ -343,8 +352,8 @@ public class GetFileTest {
 		assertEquals(meta.getClientMeta("file3", "version"), "");
 		// Update both file1 and file2
 		backupManager.backup();
-		getfile.updateFile("file1");
-		getfile.updateFile("file2");
+		getfile.updateFile("file1").get();
+		getfile.updateFile("file2").get();
 		assertEquals(meta.getClientMeta("file1", "version"), "v0.1.1");
 		assertEquals(meta.getClientMeta("file2", "version"), "v1.3.1");
 		backupManager.rollback();
@@ -352,17 +361,17 @@ public class GetFileTest {
 		assertEquals(meta.getClientMeta("file2", "version"), "v1.0.0");
 		// Update both file2 and file3
 		backupManager.backup();
-		getfile.updateFile("file2");
-		getfile.updateFile("file3");
+		getfile.updateFile("file2").get();
+		getfile.updateFile("file3").get();
 		assertEquals(meta.getClientMeta("file2", "version"), "v1.3.1");
 		assertEquals(meta.getClientMeta("file3", "version"), "v0.1.2");
 		backupManager.rollback();
 		assertEquals(meta.getClientMeta("file2", "version"), "v1.0.0");
 		assertEquals(meta.getClientMeta("file3", "version"), "");
 		// Update both and rollback to just file2 updated
-		getfile.updateFile("file2");
+		getfile.updateFile("file2").get();
 		backupManager.backup();
-		getfile.updateFile("file3");
+		getfile.updateFile("file3").get();
 		assertEquals(meta.getClientMeta("file2", "version"), "v1.3.1");
 		assertEquals(meta.getClientMeta("file3", "version"), "v0.1.2");
 		backupManager.rollback();

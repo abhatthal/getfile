@@ -5,8 +5,15 @@ import java.io.IOException;
 import java.net.HttpURLConnection;
 import java.net.MalformedURLException;
 import java.net.URI;
-import java.util.concurrent.TimeUnit;
+import java.util.List;
+
+import javax.swing.SwingUtilities;
+import javax.swing.SwingWorker;
+
 import java.lang.Math;
+
+import org.apache.commons.lang3.tuple.Pair;
+import org.apache.commons.lang3.tuple.ImmutablePair;
 
 /**
  * The ProgressTracker updates a CalcProgressBar with download data.
@@ -49,6 +56,28 @@ class ProgressTracker {
 		}
 		return 0;
 	}
+	
+	/**
+	 * Gets the current progress of a download in representable `chunks`.
+	 * As file downloads become very large, it becomes infeasible to show
+	 * progress without chunking into larger groups. This is used to show
+	 * the progress bar in updateProgress.
+	 * @param count		Number of bytes downloaded
+	 * @param total		Number of bytes total
+	 * @return			A pair of chunks downloaded and total chunks
+	 */
+	private Pair<Long, Long> chunkProgress(long count, long total) {
+		if (count > total || count < 0 || total < 0) {
+			SimpleLogger.LOG(System.err, "Unable to parse progress "
+					+ count + " / " + total);
+			return null;
+		}
+		final long NUM_CHUNKS = (long) 1e3;
+		if (total <= NUM_CHUNKS) {
+			return ImmutablePair.of(count, total);
+		}
+		return ImmutablePair.of(NUM_CHUNKS * count / total, NUM_CHUNKS);
+	}
 
 	/**
 	 * Monitoring thread will run this to track the status of a file update
@@ -57,46 +86,77 @@ class ProgressTracker {
 	 * @param progress		Progress bar to update
 	 */
 	void updateProgress(String fileKey, CalcProgressBar progress) {
-		long total = getFileSize(fileKey);
-		if (total <= 0) {
+		final long fileSizeBytes = getFileSize(fileKey);
+		if (fileSizeBytes <= 0) {
 			return;
 		}
+
 		File file = new File(
 			meta.getClientMetaFile().getParent(),
 			meta.getClientMeta(fileKey, "path"));
 		File partial = new File(file.toString().concat(".part"));
-		// Wait until partial is built with 2s timeout
-		for (int i = 0; i < 20; i++) {
+
+		// Define SwingWorker for background processing
+		SwingWorker<Void, Long> worker = new SwingWorker<>() {
+			@Override
+			protected Void doInBackground() throws Exception {
+				// Show progress until the download completes
+				while (partial.exists()) {
+					System.out.println("ProgressTracker.updateProgress(...).new SwingWorker() {...}.doInBackground()");
+					publish(partial.length());
+					Thread.sleep(200); // Non-EDT sleep
+				}
+				return null;
+			}
+
+			@Override
+			protected void process(List<Long> chunks) {
+				System.out.println("ProgressTracker.updateProgress(...).new SwingWorker() {...}.process()");
+				// Update progress bar on the EDT
+				long totalBytesDownloaded = chunks.get(chunks.size() - 1);
+				Pair<Long, Long> chunkedProgress =
+						ProgressTracker.this.chunkProgress(
+								totalBytesDownloaded, fileSizeBytes);
+				final int FILE_KEY_LEN = 24;
+				// Update the progress bar using the chunked progress
+				progress.updateProgress(
+					chunkedProgress.getLeft(), chunkedProgress.getRight(),
+					((fileKey.length() <= FILE_KEY_LEN)
+						? fileKey
+						: fileKey.substring(0, FILE_KEY_LEN))
+						+ ": "
+						+ (int) Math.round(totalBytesDownloaded / 1e6) + " of "
+						+ (int) Math.round(fileSizeBytes / 1e6) + " MB downloaded"
+				);
+			}
+
+			@Override
+			protected void done() {
+				// Hide and dispose progress bar when done
+				System.out.println("ProgressTracker.updateProgress(...).new SwingWorker() {...}.done()");
+				progress.setVisible(false);
+				progress.dispose();
+			}
+		};
+
+		// Wait until partial file exists
+		for (int i = 0; i < 10; i++) {
 			if (partial.exists()) {
 				break;
 			}
 			try {
-				 TimeUnit.MILLISECONDS.sleep(100);
-			 } catch (InterruptedException e) {
-				 Thread.currentThread().interrupt();
-				 break;
-			 }
+				Thread.sleep(1000);
+			} catch (InterruptedException e) {
+				e.printStackTrace();
+			}
 		}
-		progress.setVisible(true);
-		long count = 0;
-		// Show progress until download is complete
-		while (partial.exists()) {
-			count = partial.length();
-			progress.updateProgress(count, total,
-					fileKey + ": " +
-					(int)Math.round(count/1e6) + " of " +
-					(int)Math.round(total/1e6) + " MB downloaded");
-			try {
-				// Sleep for a short duration to periodically check the file size
-				 TimeUnit.SECONDS.sleep(1);
-				 // Exit loop after download finishes
-			 } catch (InterruptedException e) {
-				 Thread.currentThread().interrupt();
-				 break;
-			 }
+		if (partial.exists()) {
+			// Show the progress bar and start the worker
+			SwingUtilities.invokeLater(() -> progress.setVisible(true));
+			worker.execute();
+		} else {
+			SimpleLogger.LOG(System.err, "Download took too long to start. Not showing progress bar.");
 		}
-		progress.setVisible(false);
-		progress.dispose();
 	}
 	
 	private MetadataHandler meta;

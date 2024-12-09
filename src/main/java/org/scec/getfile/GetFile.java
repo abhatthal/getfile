@@ -3,8 +3,6 @@ package org.scec.getfile;
 import java.io.File;
 import java.io.IOException;
 
-import java.net.HttpURLConnection;
-import java.net.MalformedURLException;
 import java.net.URI;
 
 import java.nio.charset.StandardCharsets;
@@ -13,18 +11,15 @@ import java.nio.file.Paths;
 
 import java.util.Map;
 import java.util.HashMap;
-import java.util.List;
-import java.util.ArrayList;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import java.util.concurrent.TimeUnit;
+import java.util.concurrent.Future;
 
 import javax.swing.JOptionPane;
 
 import org.apache.commons.io.FileUtils;
-import org.apache.commons.lang3.tuple.Pair;
-import org.apache.commons.lang3.exception.ExceptionUtils;
-import org.apache.commons.lang3.tuple.ImmutablePair;
 
 /**
  * A GetFile instance contains all the logic required
@@ -62,29 +57,36 @@ public class GetFile {
 		this.tracker = new ProgressTracker(meta);
 		this.ignoreErrors = ignoreErrors;
 		this.backups = new HashMap<String, BackupManager>();
+		this.updateFileExec = Executors.newSingleThreadExecutor();
+		this.updateAllExec = Executors.newSingleThreadExecutor();
+		Runtime.getRuntime().addShutdownHook(new Thread(() -> {
+			updateFileExec.shutdown();
+			updateAllExec.shutdown();
+		}));
 	}
 	
 	/**
 	 * Update all local files using new server files.
 	 * This will force an update regardless of if there are any changes.
-	 * @return mapping of updated and unchanged files to list of file objects
+	 * @return Mapping of fileKey to file updated.
 	 */
-	public Map<String, List<File>> updateAll() {
-		// Don't attempt to update files that were removed from server
-		new DeleteFile(meta).deleteMissingFiles();
-		// Create map to store updated and unchanged files
-		Map<String, List<File>> result = new HashMap<>();
-		result.put("updated", new ArrayList<File>());
-		result.put("unchanged", new ArrayList<File>());
-		// Iterate over the files on the server
-        for (String fileKey : meta.getServerFiles()) {
-        	Pair<Boolean, File> pair = updateFile(fileKey);
-        	// Add File object to one of the updated or unchanged lists
-			result.get(pair.getLeft()
-					? "updated"
-					: "unchanged").add(pair.getRight());
-        }
-        return result;
+	public CompletableFuture<Map<String, File>> updateAll() {
+		return CompletableFuture.supplyAsync(() -> {
+			// Don't attempt to update files that were removed from server
+			new DeleteFile(meta).deleteMissingFiles();
+			// Map fileKeys to evaluated result from updateFile
+			Map<String, File> filesUpdated = new HashMap<>();
+			// Iterate over the files on the server
+			for (String fileKey : meta.getServerFiles()) {
+				try {
+					filesUpdated.put(fileKey, updateFile(fileKey).get());
+				} catch (InterruptedException | ExecutionException e) {
+					SimpleLogger.LOG(System.err, "Failed to resolve future");
+					e.printStackTrace();
+				}
+			}
+			return filesUpdated;
+		}, updateAllExec);
 	}
 	
 	/**
@@ -92,67 +94,69 @@ public class GetFile {
 	 * A file is considered updated if the version is changed.
 	 * Path changes are not considered an update.
 	 * @param fileKey			Name of key corresponding to file to try downloading
-	 * @return boolean if file is updated or unchanged, Reference to file updated
+	 * @return Future to updated file or null if error
 	 */
-	public Pair<Boolean, File> updateFile(String fileKey) {
-		final String serverVersion = meta.getServerMeta(fileKey, "version");
-		final String clientVersion = meta.getClientMeta(fileKey, "version");
-		// Handle if file doesn't exist on server
-		if (serverVersion.equals("")) {
-			SimpleLogger.LOG(System.err,
-					"File key \"" + fileKey + "\" does not exist in server meta");
-			return ImmutablePair.of(false, null);
-		}
-		// Create the file entry if it doesn't already exist
-		if (clientVersion.equals("")) {
-			meta.newClientEntry(fileKey);
-		}
-		File file = updatePath(fileKey);
-		if (clientVersion.equals(serverVersion)) {
-			SimpleLogger.LOG(System.out,
-					"File \"" + fileKey + "\" is already up to date.");
-			return ImmutablePair.of(false, file);
-		}
-		// Begin download with optional user prompting
-		boolean shouldPrompt = prompter.shouldPrompt(fileKey);
-		if ((shouldPrompt && prompter.promptDownload(fileKey)) || !shouldPrompt) {
-			// Start a monitoring thead to track download progress
-			ExecutorService executor = Executors.newSingleThreadExecutor();
-			try {
-				if (showProgress) {
-					executor.submit(() -> tracker.updateProgress(fileKey,
-							new CalcProgressBar(
-									"Downloading " + name + " Files",
-									"downloading " + fileKey)));
+	public CompletableFuture<File> updateFile(String fileKey) {
+		return CompletableFuture.supplyAsync(() -> {
+			final String serverVersion = meta.getServerMeta(fileKey, "version");
+			final String clientVersion = meta.getClientMeta(fileKey, "version");
+			// Handle if file doesn't exist on server
+			if (serverVersion.equals("")) {
+				SimpleLogger.LOG(System.err,
+						"File key \"" + fileKey + "\" does not exist in server meta");
+				return null;
+			}
+			// Create the file entry if it doesn't already exist
+			if (clientVersion.equals("")) {
+				meta.newClientEntry(fileKey);
+			}
+			File file = updatePath(fileKey);
+			if (clientVersion.equals(serverVersion)) {
+				SimpleLogger.LOG(System.out,
+						"File \"" + fileKey + "\" is already up to date.");
+				return file;
+			}
+			// Begin download with optional user prompting
+			boolean shouldPrompt = prompter.shouldPrompt(fileKey);
+			if ((shouldPrompt && prompter.promptDownload(fileKey)) || !shouldPrompt) {
+				// Start a monitoring thead to track download progress
+				ExecutorService progressBarUpdater = Executors.newSingleThreadExecutor();
+				try {
+					if (showProgress) {
+						progressBarUpdater.submit(() -> tracker.updateProgress(fileKey,
+								new CalcProgressBar(
+										"Downloading " + name + " Files",
+										"downloading " + fileKey)));
+					}
+				} catch (Exception e) {
+					SimpleLogger.LOG(System.err, "Failed to create progress bar");
+				} finally {
+					progressBarUpdater.shutdown();
 				}
-			} catch (Exception e) {
-				SimpleLogger.LOG(System.err, "Failed to create progress bar");
-			} finally {
-				executor.shutdown();
+				SimpleLogger.LOG(System.out,
+						"Update " + fileKey + " " + clientVersion + " => " + serverVersion);
+				// Download and validate the new file from the server
+				Path downloadLoc = Paths.get(
+						meta.getClientMetaFile().getParent(),
+						meta.getClientMeta(fileKey, "path"));
+				URI serverLoc = URI.create(
+						meta.getServerPath().toString().concat(
+								meta.getServerMeta(fileKey, "path")));
+				int status = Downloader.downloadFile(serverLoc, downloadLoc);
+				if (status == 0) {
+					// Update the client meta version accordingly
+					meta.setClientMeta(fileKey, "version", serverVersion);
+					return file;
+				}
 			}
-			SimpleLogger.LOG(System.out,
-					"Update " + fileKey + " " + clientVersion + " => " + serverVersion);
-			// Download and validate the new file from the server
-			Path downloadLoc = Paths.get(
-					meta.getClientMetaFile().getParent(),
-					meta.getClientMeta(fileKey, "path"));
-			URI serverLoc = URI.create(
-					meta.getServerPath().toString().concat(
-							meta.getServerMeta(fileKey, "path")));
-			int status = Downloader.downloadFile(serverLoc, downloadLoc);
-			if (status == 0) {
-				// Update the client meta version accordingly
-				meta.setClientMeta(fileKey, "version", serverVersion);
-				return ImmutablePair.of(true, file);
+			SimpleLogger.LOG(System.err, "Failed to download " + fileKey);
+			if (!ignoreErrors) {
+				String message = "Error downloading "+fileKey+".\nServer down or file moved, try again later.";
+				JOptionPane.showMessageDialog(null, message, "Download Error", JOptionPane.ERROR_MESSAGE);
+				throw new RuntimeException("Failed to download file!");
 			}
-		}
-		SimpleLogger.LOG(System.err, "Failed to download " + fileKey);
-		if (!ignoreErrors) {
-			String message = "Error downloading "+fileKey+".\nServer down or file moved, try again later.";
-			JOptionPane.showMessageDialog(null, message, "Download Error", JOptionPane.ERROR_MESSAGE);
-			throw new RuntimeException("Failed to download file!");
-		}
-		return ImmutablePair.of(false, file);
+			return file;
+		}, updateFileExec);
 	}
 	
 	/**
@@ -233,4 +237,7 @@ public class GetFile {
 	private final boolean ignoreErrors;
 	// Each GetFile instance has its own Prompter with default user prompting behavior.
 	private final Prompter prompter;
+	// Single thread to enure sequential downloads
+	private ExecutorService updateFileExec;
+	private ExecutorService updateAllExec;
 }
