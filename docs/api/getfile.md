@@ -45,31 +45,26 @@ ignoreErrors allows for silently continuing with errors instead of throwing
 a runtime exception. This is useful for when a failed download shouldn't
 impede the running application.
 
-## public Map<String, List<File>> updateAll()
+## public CompletableFuture<Map<String, File>> updateAll()
 Iterate over all the files found in the serverMeta and invoke
 updateFile with the unique file key. Files are determined to be new by
 comparing the serverMeta versions with the clientMeta versions. If an entry for
 a file is not found in the clientMeta, then a new entry is made and the file is
 downloaded.
 
-updateAll returns a mapping of a string to a list of File objects.
-An example return mapping looks as follows:
-```
-{
-	"updated": [File1, File3, ...],
-	"unchanged": [File2, File4, File5, ...]
-}
-```
-The purpose of this mapping is to distinguish between updated and unchanged files.
+updateAll returns a mapping of the fileKey to the updated file object.
+The future for the map evaluates once all the files have been updated.
 The corresponding File objects are mutable and can be used to find the paths to
 the files on the client system.
 
-Example invocation:
+Example invocation to update all files and then read one of them:
 ```
-gf.updateAll();
+gf.updateAll().thenAccept(updatedFiles -> {
+	File file1 = updatedFiles.get("file1");
+});
 ```
 
-## public Pair<Boolean, File> updateFile(String fileKey)
+## public CompletableFuture<File> updateFile(String fileKey)
 The file key uniquely identifies a file on the server and maps to the
 corresponding version and where to download. This value is found in the
 serverMeta and should also be found in the clientMeta, otherwise it’s assumed
@@ -77,24 +72,13 @@ to not exist and will update with a new entry. Note that this file key may be
 different from the name of the file and could even include spaces and
 characters not typically permissible for a file name.
 
-updateFile returns a Pair with the left value being true if the file was
-successfully updated (version changed) and the right value being a reference to
-the file on the client system. If the file is not found, this reference will be null.
+updateFile returns a future to the File where the updated file will be.
 
-Pair is part of the Apache Commons Lang3 specification and is imported in client
-code as follows:
+Example invocation to get one file:
 ```
-import org.apache.commons.lang3.tuple.Pair;
-```
-
-An example return value is as follows:
-```
-(true, File3)
-```
-
-Example invocation:
-```
-gf.updateFile("data");
+gf.updateFile("data").thenAccept(data -> {
+	System.out.println("Downloaded " + data.getName());
+});
 ```
 
 ## public BackupManager getBackupManager(String identifier)
