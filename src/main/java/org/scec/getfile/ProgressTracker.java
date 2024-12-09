@@ -102,7 +102,6 @@ class ProgressTracker {
 			protected Void doInBackground() throws Exception {
 				// Show progress until the download completes
 				while (partial.exists()) {
-					System.out.println("ProgressTracker.updateProgress(...).new SwingWorker() {...}.doInBackground()");
 					publish(partial.length());
 					Thread.sleep(200); // Non-EDT sleep
 				}
@@ -111,7 +110,6 @@ class ProgressTracker {
 
 			@Override
 			protected void process(List<Long> chunks) {
-				System.out.println("ProgressTracker.updateProgress(...).new SwingWorker() {...}.process()");
 				// Update progress bar on the EDT
 				long totalBytesDownloaded = chunks.get(chunks.size() - 1);
 				Pair<Long, Long> chunkedProgress =
@@ -133,7 +131,6 @@ class ProgressTracker {
 			@Override
 			protected void done() {
 				// Hide and dispose progress bar when done
-				System.out.println("ProgressTracker.updateProgress(...).new SwingWorker() {...}.done()");
 				progress.setVisible(false);
 				progress.dispose();
 			}
