@@ -87,6 +87,15 @@ public class GetFileTest {
                     .withHeader("Content-Length", "25")
                     .withStatus(200)));
         
+        // Clear old client data
+		File client = new File(clientRoot);
+		try {
+			if (client.exists()) {
+				FileUtils.cleanDirectory(client);
+			}
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
         // Create client resources
         // Intentional typo file11 to demonstrate path mismatch logic
         String clientMetaStr = """
@@ -138,14 +147,6 @@ public class GetFileTest {
 		if (wireMockServer != null && wireMockServer.isRunning()) {
 	        wireMockServer.stop();
 	    }
-		File client = new File(clientRoot);
-		try {
-			if (client.exists()) {
-				FileUtils.cleanDirectory(client);
-			}
-		} catch (IOException e) {
-			e.printStackTrace();
-		}
 	}
 
 	/**

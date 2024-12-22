@@ -51,7 +51,8 @@ public class GetFile {
 			}
 		}
 		this.name = name;
-		this.meta = new MetadataHandler(clientMetaFile, serverMetaURI);
+		this.meta = MetadataHandler.MetadataHandlerFactory(
+				clientMetaFile, serverMetaURI);
 		this.prompter = new Prompter(meta);
 		this.showProgress = showProgress;
 		this.tracker = new ProgressTracker(meta);
@@ -62,6 +63,7 @@ public class GetFile {
 		Runtime.getRuntime().addShutdownHook(new Thread(() -> {
 			updateFileExec.shutdown();
 			updateAllExec.shutdown();
+			meta.writeClientMetaState();
 		}));
 	}
 	
@@ -227,7 +229,7 @@ public class GetFile {
 	public static final String LATEST_JAR_URL =
 			"https://raw.githubusercontent.com/abhatthal/getfile/refs/heads/main/libs/libs.json";
 	final String name;
-	// GetFile metadata is stored in MetadataHandler to pass data into utility classes.
+	// GetFile client metadata is stored in MetadataHandler to pass data into utility classes.
 	final MetadataHandler meta;
 	// Each GetFile instance can have multiple concurrent backups. 1-many relationship via Map.
 	private final Map<String, BackupManager> backups;

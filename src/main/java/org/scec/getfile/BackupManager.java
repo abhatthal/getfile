@@ -53,6 +53,7 @@ public class BackupManager {
 	 * Rollbacks do nothing if no backup exists. Backups persist across GetFile instances.
 	 */
 	public void backup() {
+		meta.writeClientMetaState();
 		backupFile(meta.getClientMetaFile());
         for (String file : meta.getClientFiles()) {
         	Path path = Paths.get(

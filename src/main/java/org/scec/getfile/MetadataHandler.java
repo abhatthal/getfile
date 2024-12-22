@@ -6,14 +6,16 @@ import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 
 import java.net.URI;
+import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Map;
 import java.util.Set;
 
 import org.apache.commons.io.FileUtils;
 
 import java.io.File;
-import java.io.FileReader;
 import java.io.FileWriter;
+import java.io.FileReader;
 import java.io.IOException;
 
 /**
@@ -26,7 +28,7 @@ class MetadataHandler {
 	 * @param clientMetaFile	Reference to local metadata file on client
 	 * @param serverMetaURI		Link to hosted server metadata file to download
 	 */
-	MetadataHandler(File clientMetaFile, URI serverMetaURI) {
+	private MetadataHandler(File clientMetaFile, URI serverMetaURI) {
 		// Read client metadata
 		this.clientMetaFile = clientMetaFile;
 		loadClientMeta();
@@ -70,6 +72,25 @@ class MetadataHandler {
 		}
 		this.serverMetaFile = cachedServerMetaFile.exists() ? cachedServerMetaFile : null;
 		this.serverMeta = parseJson(serverMetaFile);
+	}
+	
+	/**
+	 * The MetadataHandlerFactory ensures that a new instance is only created
+	 * if there isn't already another MetadataHandler instance for the same
+	 * clientMetaFile.
+	 * @param clientMetaFile
+	 * @param serverMetaURI
+	 * @return
+	 */
+	static MetadataHandler MetadataHandlerFactory(
+			File clientMetaFile, URI serverMetaURI) {
+		String path = clientMetaFile.getAbsolutePath();
+		if (metaMap.containsKey(path)) {
+			return metaMap.get(path);
+		}
+		MetadataHandler newInstance = new MetadataHandler(clientMetaFile, serverMetaURI);
+		metaMap.put(path, newInstance);
+		return newInstance;
 	}
 
 	/**
@@ -119,7 +140,7 @@ class MetadataHandler {
 	 * Can be done multiple times to load fresh changes made directly to file.
 	 */
 	void loadClientMeta() {
-		this.clientMeta = parseJson(clientMetaFile);	
+		clientMeta = parseJson(clientMetaFile);
 	}
 
 	/**
@@ -161,7 +182,7 @@ class MetadataHandler {
 	}
 	
 	/**
-	 * Set file[key] = value in client metadata in both memory and disk.
+	 * Set file[key] = value in client metadata.
 	 * Used to update client file version after successful update.
 	 * This requires the file entry to exist. File entries are created with
 	 * the function `newClientEntry`.
@@ -173,8 +194,6 @@ class MetadataHandler {
 		try {
 			// Update the file value in memory
 			((JsonObject) clientMeta.get(file)).addProperty(key, value);
-			// Write the new JSON to disk
-			writeClientMetaState();
 		} catch (NullPointerException e) {
 			e.printStackTrace();
 			SimpleLogger.LOG(System.err, "Failed to set " + file + "[" + key + "]");
@@ -192,7 +211,6 @@ class MetadataHandler {
 		newFileEntry.addProperty("path", getServerMeta(file, "path"));
 		// newFileEntry.addProperty("prompt", String.valueOf(promptByDefault));
 		clientMeta.add(file, newFileEntry);
-		writeClientMetaState();
 	}
 	
 	/**
@@ -203,22 +221,21 @@ class MetadataHandler {
 		if (clientMeta.has(file)) {
 			clientMeta.remove(file);
 		}
-		writeClientMetaState();
 	}
 	
 	/**
 	 * Push current state of clientMeta in memory to the client meta file on disk.
 	 */
 	void writeClientMetaState() {
-		Gson gson = new GsonBuilder().setPrettyPrinting().create();
-		try {
-			FileWriter writer = new FileWriter(clientMetaFile);
-			gson.toJson(clientMeta, writer);
-			writer.flush();
-			writer.close();
-		} catch (IOException e) {
-			e.printStackTrace();
-			SimpleLogger.LOG(System.err, "Failed to write clientMeta to disk");
+		synchronized(getLock(clientMetaFile)) {
+			Gson gson = new GsonBuilder().setPrettyPrinting().create();
+			// Parse json and merge with current meta before writing
+			try (FileWriter writer = new FileWriter(clientMetaFile)) {
+				gson.toJson(clientMeta, writer);
+			} catch (IOException e) {
+				e.printStackTrace();
+				SimpleLogger.LOG(System.err, "Failed to write clientMeta to disk");
+			}
 		}
 	}
 
@@ -246,22 +263,39 @@ class MetadataHandler {
 	 * 						Returns null if any error encountered.
 	 */
     private JsonObject parseJson(File file) {
-        try (FileReader reader = new FileReader(file)) {
-            // Parse JSON content as a JsonObject
-            return JsonParser.parseReader(reader).getAsJsonObject();
-        } catch (IOException e) {
-        	SimpleLogger.LOG(System.err, "Unable to parse JSON for " + file.getName());
-            e.printStackTrace();
-        }
-        return null;
+		try (FileReader reader = new FileReader(file)) {
+			// Parse JSON content as a JsonObject
+			return JsonParser.parseReader(reader).getAsJsonObject();
+		} catch (IOException e) {
+			SimpleLogger.LOG(System.err, "Unable to parse JSON for " + file.getName());
+			e.printStackTrace();
+		}
+		return null;
     }
-	
+
+	/**
+	 * Returns the fileLock for the clientMetaFile
+	 * @return
+	 */
+	private static Object getLock(File file) {
+		String filePath = file.getAbsolutePath();
+		if (fileLocks.containsKey(filePath)) {
+			return fileLocks.get(filePath);
+		}
+		Object newLock = new Object();
+		fileLocks.put(filePath, newLock);
+		return newLock;
+	}
+
+	// Track instances of MetadataHandler for MetadataHandlerFactory
+	private static final Map<String, MetadataHandler> metaMap = new HashMap<>();
+	// Each unique clientMetaFile has its own FileLock. 1-1 relationship.
+	private static final Map<String, Object> fileLocks = new HashMap<>();
+	private URI serverMetaURI;
 	// Names of metadata JSON files
 	private File clientMetaFile;
 	private File serverMetaFile;
-	private URI serverMetaURI;
 	// Parsed metadata objects
 	private JsonObject serverMeta;
 	private JsonObject clientMeta;
-
 }
