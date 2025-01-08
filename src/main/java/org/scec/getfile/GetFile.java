@@ -15,9 +15,6 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import java.util.concurrent.Future;
-
-import javax.swing.JOptionPane;
 
 import org.apache.commons.io.FileUtils;
 
@@ -34,10 +31,9 @@ public class GetFile {
 	 * @param clientMetaFile	Reference to local metadata file on client
 	 * @param serverMetaURI		Link to hosted server metadata file to download
 	 * @param showProgress		Show download progress in CalcProgressBar
-	 * @param ignoreErrors		Throw runtime exception or just return null
 	 */
 	public GetFile(String name, File clientMetaFile, URI serverMetaURI,
-			boolean showProgress, boolean ignoreErrors) {
+			boolean showProgress) {
 		clientMetaFile = clientMetaFile.getAbsoluteFile();
 		// Create an empty client meta file if it doesn't already exist.
 		if (!clientMetaFile.exists()) {
@@ -56,7 +52,6 @@ public class GetFile {
 		this.prompter = new Prompter(meta);
 		this.showProgress = showProgress;
 		this.tracker = new ProgressTracker(meta);
-		this.ignoreErrors = ignoreErrors;
 		this.backups = new HashMap<String, BackupManager>();
 		this.updateFileExec = Executors.newSingleThreadExecutor();
 		this.updateAllExec = Executors.newSingleThreadExecutor();
@@ -151,12 +146,6 @@ public class GetFile {
 					return file;
 				}
 			}
-			SimpleLogger.LOG(System.err, "Failed to download " + fileKey);
-			if (!ignoreErrors) {
-				String message = "Error downloading "+fileKey+".\nServer down or file moved, try again later.";
-				JOptionPane.showMessageDialog(null, message, "Download Error", JOptionPane.ERROR_MESSAGE);
-				throw new RuntimeException("Failed to download file!");
-			}
 			return file;
 		}, updateFileExec);
 	}
@@ -236,7 +225,6 @@ public class GetFile {
 	// Show users the progress of their downloads
 	final ProgressTracker tracker;
 	private final boolean showProgress;
-	private final boolean ignoreErrors;
 	// Each GetFile instance has its own Prompter with default user prompting behavior.
 	private final Prompter prompter;
 	// Single thread to enure sequential downloads

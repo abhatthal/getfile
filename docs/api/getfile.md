@@ -7,8 +7,7 @@ and the link to the hosted server metadata.
 			/*name=*/"MyGetFileApp",
 			/*clientMetaFile=*/new File("getfile.json"),
 			/*serverMetaURI=*/URI.create("http://localhost:8088/meta.json"),
-			/*showProgress=*/false,
-			/*ignoreErrors=*/false);
+			/*showProgress=*/false);
 ```
 A GetFile `name` is a string used inside GetFile user prompts. It may see additional
 uses in future releases. There is no requirement for this name to be unique.
@@ -41,9 +40,6 @@ name, then they could overwrite each other when downloaded. Writing multiple
 instances to the same directory creates a race condition and should be avoided.
 
 The showProgress boolean allows you to disable the GUI download progress bar.
-ignoreErrors allows for silently continuing with errors instead of throwing
-a runtime exception. This is useful for when a failed download shouldn't
-impede the running application.
 
 ## public CompletableFuture<Map<String, File>> updateAll()
 Iterate over all the files found in the serverMeta and invoke

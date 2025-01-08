@@ -135,8 +135,7 @@ public class GetFileTest {
 					/*name=*/this.getClass().getName(),
 					clientMetaFile,
 					serverMetaURI,
-					/*showProgress=*/false,
-					/*ignoreErrors=*/true);
+					/*showProgress=*/false);
 		meta = getfile.meta;
 		backupManager = getfile.getBackupManager();
 	}
