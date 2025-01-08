@@ -201,8 +201,8 @@ class MetadataHandler {
 	}
 	
 	/**
-	 * Create a new JsonObject for the client metadata and append the entry into
-	 * both memory and disk.
+	 * Create a new JsonObject for the client metadata in memory.
+	 * Must invoke writeClientMetaState to write to disk.
 	 * @param file	Name of new JsonObject entry
 	 */
 	void newClientEntry(String file) {
