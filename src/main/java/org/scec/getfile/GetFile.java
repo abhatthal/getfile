@@ -122,8 +122,10 @@ public class GetFile {
 					if (showProgress) {
 						progressBarUpdater.submit(() -> tracker.updateProgress(fileKey,
 								new CalcProgressBar(
-										"Downloading " + name + " Files",
-										"downloading " + fileKey)));
+									/*owner=*/null,
+									/*title=*/"Downloading " + name + " Files",
+									/*info=*/"downloading " + fileKey,
+									/*visible=*/false)));
 					}
 				} catch (Exception e) {
 					SimpleLogger.LOG(System.err, "Failed to create progress bar");

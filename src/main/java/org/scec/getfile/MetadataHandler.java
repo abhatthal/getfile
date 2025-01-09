@@ -263,6 +263,8 @@ class MetadataHandler {
 	 * 						Returns null if any error encountered.
 	 */
     private JsonObject parseJson(File file) {
+    	if (file == null || !file.exists())
+    		return null;
 		try (FileReader reader = new FileReader(file)) {
 			// Parse JSON content as a JsonObject
 			return JsonParser.parseReader(reader).getAsJsonObject();
