@@ -56,4 +56,5 @@ You can build your own thin or Fat JAR file from source to use as a dependency i
 ## Projects using GetFile
 ### [OpenSHA](https://github.com/opensha/opensha)
 GetFile will serve earthquake hazard models inside the OpenSHA framework.
-See details about how GetFile will be used on SCECpedia at https://strike.scec.org/scecpedia/GetFile.
+
+See details about how GetFile is used on SCECpedia at https://strike.scec.org/scecpedia/GetFile.
