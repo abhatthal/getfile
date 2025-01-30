@@ -1,10 +1,10 @@
 {
 	"getfile-all": {
-		"version": "v25.1.1",
+		"version": "v25.1.2",
 		"path": "getfile-all.jar"
 	},
 	"getfile": {
-		"version": "v25.1.1",
+		"version": "v25.1.2",
 		"path": "getfile.jar"
 	}
 }
