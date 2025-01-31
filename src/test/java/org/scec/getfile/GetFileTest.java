@@ -98,25 +98,23 @@ public class GetFileTest {
 		}
         // Create client resources
         // Intentional typo file11 to demonstrate path mismatch logic
-        String clientMetaStr = """
-                {
-                  "file1": {
-                    "version": "v0.1.1",
-                    "path": "data/file11.txt",
-                    "prompt": "true"
-                  },
-                  "file2": {
-                    "version": "v1.0.0",
-                    "path": "data/file2.txt",
-                    "prompt": "false"
-                  },
-                  "file4": {
-                    "version": "v1.0.0",
-                    "path": "data/file4.txt",
-                    "prompt": "false"
-                  }
-                }
-                """;
+		String clientMetaStr = "{\n" +
+		        "  \"file1\": {\n" +
+		        "    \"version\": \"v0.1.1\",\n" +
+		        "    \"path\": \"data/file11.txt\",\n" +
+		        "    \"prompt\": \"true\"\n" +
+		        "  },\n" +
+		        "  \"file2\": {\n" +
+		        "    \"version\": \"v1.0.0\",\n" +
+		        "    \"path\": \"data/file2.txt\",\n" +
+		        "    \"prompt\": \"false\"\n" +
+		        "  },\n" +
+		        "  \"file4\": {\n" +
+		        "    \"version\": \"v1.0.0\",\n" +
+		        "    \"path\": \"data/file4.txt\",\n" +
+		        "    \"prompt\": \"false\"\n" +
+		        "  }\n" +
+		        "}";
         JsonObject clientMeta = JsonParser.parseString(clientMetaStr).getAsJsonObject();
         File clientMetaFile = new File(clientRoot + "getfile.json");
         try {

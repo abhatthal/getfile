@@ -65,7 +65,7 @@ public class BackupManager {
 	
 	/**
 	 * Returns true if there exists a backup for current identifier.
-	 * @return
+	 * @return true if backup file exists for id, else false
 	 */
 	public boolean backupExists() {
         File metaBak = new File(

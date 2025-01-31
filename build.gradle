@@ -12,6 +12,16 @@ ext {
 	parentProject = null
 }
 
+java {
+	toolchain {
+		languageVersion = JavaLanguageVersion.of(21) // Use JDK 21 for builds
+	}
+	sourceCompatibility = JavaVersion.VERSION_11 // Source code uses Java 11 syntax
+	targetCompatibility = JavaVersion.VERSION_11 // Compiled bytecode targets Java 11 JVMs
+}
+
+compileJava.options.encoding = "UTF-8"
+
 repositories {
 	// Use Maven Central for resolving dependencies.
 	mavenCentral()
@@ -35,13 +45,6 @@ dependencies {
 	implementation 'commons-codec:commons-codec:1.17.1'
 	// https://mvnrepository.com/artifact/org.apache.commons/commons-lang3
 	implementation 'org.apache.commons:commons-lang3:3.17.0'
-}
-
-// Apply a specific Java toolchain to ease working on different environments.
-java {
-	toolchain {
-		languageVersion = JavaLanguageVersion.of(21)
-	}
 }
 
 tasks.named('test') {

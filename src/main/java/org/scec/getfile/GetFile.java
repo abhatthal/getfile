@@ -158,7 +158,7 @@ public class GetFile {
 	 * Multiple BackupManagers may belong to a GetFile instance,
 	 * allowing for multiple backups at different states.
 	 * This method allows us to get or create a BackupManager as needed.
-	 * @param identifier
+	 * @param identifier		unique ID for backup instance
 	 * @return corresponding BackupManager for the given unique identifier.
 	 */
 	public BackupManager getBackupManager(String identifier) {
@@ -172,7 +172,7 @@ public class GetFile {
 	
 	/**
 	 * Invoke the BackupManager with an empty string identifier.
-	 * @return
+	 * @return default BackupManager instance for this GetFile instance
 	 */
 	public BackupManager getBackupManager() {
 		return getBackupManager("");
@@ -183,7 +183,7 @@ public class GetFile {
 	 * If the serverPath and clientPath mismatch, then the file location was
 	 * updated and the client file location should be updated accordingly.
 	 * Invoked in updateFile regardless of if file is outdated.
-	 * @param fileKey		Name of file key in metadata
+	 * @param fileKey			Name of file key in metadata
 	 * @return File object with updated or unchanged path
 	 */
 	private File updatePath(String fileKey) {
