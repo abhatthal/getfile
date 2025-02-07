@@ -48,7 +48,7 @@ https://github.com/abhatthal/getfile-demo
 
 ## Building
 You can build your own thin or Fat JAR file from source to use as a dependency in your application.
-* `gradle build`
+* `./gradlew build`
 * Copy Fat JAR `libs/getfile-all.jar` into your project lib directory
 * Thin JAR is also available at `libs/getfile.jar`, but you must manually specify dependencies
 * In a Gradle project, you would add using `implementation files('libs/getfile-all.jar')`

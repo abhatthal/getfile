@@ -5,6 +5,9 @@ package org.scec.getfile;
  * a prompt should occur for a given file.
  */
 class Prompter {
+	private final boolean promptByDefault;
+	private MetadataHandler meta;
+
 	/**
 	 * Create a prompter with default prompt behavior for when not
 	 * specified in the client meta.
@@ -63,9 +66,4 @@ class Prompter {
 		}
 		return false;
 	}
-
-	private final boolean promptByDefault;
-	private MetadataHandler meta;
 }
-
-

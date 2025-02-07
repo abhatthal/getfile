@@ -15,6 +15,9 @@ import org.apache.commons.io.FileUtils;
  * capable of managing one backup and its corresponding rollback.
  */
 public class BackupManager {
+	private final String identifier;
+	private static final Set<String> identifiers = new HashSet<>();
+	private MetadataHandler meta;
 	
 	/**
 	 * A constructor for the BackupManager takes a String identifier, to uniquely
@@ -166,9 +169,4 @@ public class BackupManager {
 			}
 		}
 	}
-	
-	
-	private final String identifier;
-	private static final Set<String> identifiers = new HashSet<>();
-	private MetadataHandler meta;
 }

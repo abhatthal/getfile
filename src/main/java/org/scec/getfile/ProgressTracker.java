@@ -19,6 +19,7 @@ import org.apache.commons.lang3.tuple.ImmutablePair;
  * The ProgressTracker updates a CalcProgressBar with download data.
  */
 class ProgressTracker {
+	private MetadataHandler meta;
 
 	/**
 	 * ProgressTracker Constructor
@@ -156,6 +157,4 @@ class ProgressTracker {
 			SimpleLogger.LOG(System.err, "Download either finished or hasn't started within timeout. Not showing progress bar.");
 		}
 	}
-	
-	private MetadataHandler meta;
 }

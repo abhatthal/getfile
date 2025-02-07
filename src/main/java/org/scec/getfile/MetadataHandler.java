@@ -22,6 +22,18 @@ import java.io.IOException;
  * MetadataHandler handles metadata IO on server and client.
  */
 class MetadataHandler {
+	// Track instances of MetadataHandler for MetadataHandlerFactory
+	private static final Map<String, MetadataHandler> metaMap = new HashMap<>();
+	// Each unique clientMetaFile has its own FileLock. 1-1 relationship.
+	private static final Map<String, Object> fileLocks = new HashMap<>();
+	private URI serverMetaURI;
+	// Names of metadata JSON files
+	private File clientMetaFile;
+	private File serverMetaFile;
+	// Parsed metadata objects
+	private JsonObject serverMeta;
+	private JsonObject clientMeta;
+
 	/**
 	 * Reads file metadata from server and client and writes client metadata
 	 * as new files are downloaded. Reads fresh server meta on initialization.
@@ -288,16 +300,4 @@ class MetadataHandler {
 		fileLocks.put(filePath, newLock);
 		return newLock;
 	}
-
-	// Track instances of MetadataHandler for MetadataHandlerFactory
-	private static final Map<String, MetadataHandler> metaMap = new HashMap<>();
-	// Each unique clientMetaFile has its own FileLock. 1-1 relationship.
-	private static final Map<String, Object> fileLocks = new HashMap<>();
-	private URI serverMetaURI;
-	// Names of metadata JSON files
-	private File clientMetaFile;
-	private File serverMetaFile;
-	// Parsed metadata objects
-	private JsonObject serverMeta;
-	private JsonObject clientMeta;
 }

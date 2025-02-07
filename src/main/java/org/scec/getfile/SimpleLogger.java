@@ -8,7 +8,6 @@ import java.io.PrintStream;
  * from which the log was called. The message is printed to the specified output stream.
  */
 public class SimpleLogger {
-
 	/**
 	 * Logs a message to the specified output stream, prefixed with the calling class
 	 * and method names.

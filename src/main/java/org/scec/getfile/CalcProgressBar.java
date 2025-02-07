@@ -31,9 +31,8 @@ import org.apache.commons.lang3.StringUtils;
  * @author Vipin Gupta
  * @version $Id: CalcProgressBar.java 11338 2016-05-12 19:53:30Z kmilner $
  */
-
 class CalcProgressBar extends JDialog {
-
+	private static final long serialVersionUID = 4692955464961737529L;
 	private static final int DIALOG_WIDTH = 320;
 	private static final int B = 20; // border width
 	private static Font font;

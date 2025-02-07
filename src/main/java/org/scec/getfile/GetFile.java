@@ -13,8 +13,6 @@ import java.util.Map;
 import java.util.HashMap;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 
 import org.apache.commons.io.FileUtils;
 
@@ -24,6 +22,23 @@ import org.apache.commons.io.FileUtils;
  * All tracked files must be versioned.
  */
 public class GetFile {
+	/**
+	 * Store the current URL where the latest code is found. This allows us to update
+	 * the endpoint without manually editing each client that invokes GetFile for self-updating.
+	 */
+	public static final String LATEST_JAR_URL =
+			"https://raw.githubusercontent.com/abhatthal/getfile/refs/heads/main/libs/libs.json";
+	final String name;
+	// GetFile client metadata is stored in MetadataHandler to pass data into utility classes.
+	final MetadataHandler meta;
+	// Each GetFile instance can have multiple concurrent backups. 1-many relationship via Map.
+	private final Map<String, BackupManager> backups;
+	// Show users the progress of their downloads
+	final ProgressTracker tracker;
+	private final boolean showProgress;
+	// Each GetFile instance has its own Prompter with default user prompting behavior.
+	private final Prompter prompter;
+
 	/**
 	 * Constructor establishes connection with server and parses local and
 	 * server file metadata into memory.
@@ -53,11 +68,7 @@ public class GetFile {
 		this.showProgress = showProgress;
 		this.tracker = new ProgressTracker(meta);
 		this.backups = new HashMap<String, BackupManager>();
-		this.updateFileExec = Executors.newSingleThreadExecutor();
-		this.updateAllExec = Executors.newSingleThreadExecutor();
 		Runtime.getRuntime().addShutdownHook(new Thread(() -> {
-			updateFileExec.shutdown();
-			updateAllExec.shutdown();
 			meta.writeClientMetaState();
 		}));
 	}
@@ -83,7 +94,7 @@ public class GetFile {
 				}
 			}
 			return filesUpdated;
-		}, updateAllExec);
+		});
 	}
 	
 	/**
@@ -116,21 +127,15 @@ public class GetFile {
 			// Begin download with optional user prompting
 			boolean shouldPrompt = prompter.shouldPrompt(fileKey);
 			if ((shouldPrompt && prompter.promptDownload(fileKey)) || !shouldPrompt) {
-				// Start a monitoring thead to track download progress
-				ExecutorService progressBarUpdater = Executors.newSingleThreadExecutor();
-				try {
-					if (showProgress) {
-						progressBarUpdater.submit(() -> tracker.updateProgress(fileKey,
-								new CalcProgressBar(
-									/*owner=*/null,
-									/*title=*/"Downloading " + name + " Files",
-									/*info=*/"downloading " + fileKey,
-									/*visible=*/false)));
-					}
-				} catch (Exception e) {
-					SimpleLogger.LOG(System.err, "Failed to create progress bar");
-				} finally {
-					progressBarUpdater.shutdown();
+				if (showProgress) {
+					CompletableFuture.runAsync(() -> {
+						tracker.updateProgress(fileKey,
+							new CalcProgressBar(
+								/*owner=*/null,
+								/*title=*/"Downloading " + name + " Files",
+								/*info=*/"downloading " + fileKey,
+								/*visible=*/false));
+					});
 				}
 				SimpleLogger.LOG(System.out,
 						"Update " + fileKey + " " + clientVersion + " => " + serverVersion);
@@ -149,7 +154,7 @@ public class GetFile {
 				}
 			}
 			return file;
-		}, updateFileExec);
+		});
 	}
 	
 	/**
@@ -212,24 +217,4 @@ public class GetFile {
 		}
 		return newLoc;
 	}
-	
-	/**
-	 * Store the current URL where the latest code is found. This allows us to update
-	 * the endpoint without manually editing each client that invokes GetFile for self-updating.
-	 */
-	public static final String LATEST_JAR_URL =
-			"https://raw.githubusercontent.com/abhatthal/getfile/refs/heads/main/libs/libs.json";
-	final String name;
-	// GetFile client metadata is stored in MetadataHandler to pass data into utility classes.
-	final MetadataHandler meta;
-	// Each GetFile instance can have multiple concurrent backups. 1-many relationship via Map.
-	private final Map<String, BackupManager> backups;
-	// Show users the progress of their downloads
-	final ProgressTracker tracker;
-	private final boolean showProgress;
-	// Each GetFile instance has its own Prompter with default user prompting behavior.
-	private final Prompter prompter;
-	// Single thread to enure sequential downloads
-	private ExecutorService updateFileExec;
-	private ExecutorService updateAllExec;
 }

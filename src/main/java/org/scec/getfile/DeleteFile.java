@@ -13,6 +13,7 @@ import java.util.Set;
  * Logic for deletion of files
  */
 class DeleteFile {
+	private MetadataHandler meta;
 	
 	/**
 	 * Constructor. DeleteFile contains static methods that do not depend
@@ -79,7 +80,4 @@ class DeleteFile {
 					"Error deleting directory " + dir + ": " + e.getMessage());
 		}
 	}
-	
-	private MetadataHandler meta;
 }
-
