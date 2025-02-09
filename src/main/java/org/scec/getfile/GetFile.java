@@ -79,9 +79,6 @@ public class GetFile {
 	 */
 	public CompletableFuture<Map<String, File>> updateAll() {
 		return CompletableFuture.supplyAsync(() -> {
-			System.out.println("\u001B[41m"
-					+ "Hello! I'm an outdated JAR invoked inside GetFile.updateAll"
-					+ "\033[0m");
 			// Map fileKeys to evaluated result from updateFile
 			Map<String, File> filesUpdated = new HashMap<>();
 			// Don't attempt to update files that were removed from server
