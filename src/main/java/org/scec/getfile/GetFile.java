@@ -12,7 +12,6 @@ import java.nio.file.Paths;
 import java.util.Map;
 import java.util.HashMap;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutionException;
 
 import org.apache.commons.io.FileUtils;
 
@@ -80,18 +79,16 @@ public class GetFile {
 	 */
 	public CompletableFuture<Map<String, File>> updateAll() {
 		return CompletableFuture.supplyAsync(() -> {
-			// Don't attempt to update files that were removed from server
-			new DeleteFile(meta).deleteMissingFiles();
+			System.out.println("\u001B[41m"
+					+ "Hello! I'm an outdated JAR invoked inside GetFile.updateAll"
+					+ "\033[0m");
 			// Map fileKeys to evaluated result from updateFile
 			Map<String, File> filesUpdated = new HashMap<>();
+			// Don't attempt to update files that were removed from server
+			new DeleteFile(meta).deleteMissingFiles();
 			// Iterate over the files on the server
 			for (String fileKey : meta.getServerFiles()) {
-				try {
-					filesUpdated.put(fileKey, updateFile(fileKey).get());
-				} catch (InterruptedException | ExecutionException e) {
-					SimpleLogger.LOG(System.err, "Failed to resolve future");
-					e.printStackTrace();
-				}
+				filesUpdated.put(fileKey, updateFile(fileKey).join());
 			}
 			return filesUpdated;
 		});
@@ -127,16 +124,6 @@ public class GetFile {
 			// Begin download with optional user prompting
 			boolean shouldPrompt = prompter.shouldPrompt(fileKey);
 			if ((shouldPrompt && prompter.promptDownload(fileKey)) || !shouldPrompt) {
-				if (showProgress) {
-					CompletableFuture.runAsync(() -> {
-						tracker.updateProgress(fileKey,
-							new CalcProgressBar(
-								/*owner=*/null,
-								/*title=*/"Downloading " + name + " Files",
-								/*info=*/"downloading " + fileKey,
-								/*visible=*/false));
-					});
-				}
 				SimpleLogger.LOG(System.out,
 						"Update " + fileKey + " " + clientVersion + " => " + serverVersion);
 				// Download and validate the new file from the server
@@ -146,12 +133,22 @@ public class GetFile {
 				URI serverLoc = URI.create(
 						meta.getServerPath().toString().concat(
 								meta.getServerMeta(fileKey, "path")));
-				int status = Downloader.downloadFile(serverLoc, downloadLoc);
-				if (status == 0) {
-					// Update the client meta version accordingly
-					meta.setClientMeta(fileKey, "version", serverVersion);
-					return file;
+
+				CompletableFuture<Void> downloader = CompletableFuture.runAsync(() -> {
+					if (Downloader.downloadFile(serverLoc, downloadLoc) == 0) {
+						// Update the client meta version accordingly
+						meta.setClientMeta(fileKey, "version", serverVersion);
+					}
+				});
+				if (showProgress) {
+				tracker.updateProgress(fileKey,
+					new CalcProgressBar(
+						/*owner=*/null,
+						/*title=*/"Downloading " + name + " Files",
+						/*info=*/"downloading " + fileKey,
+						/*visible=*/false));
 				}
+				downloader.join();
 			}
 			return file;
 		});

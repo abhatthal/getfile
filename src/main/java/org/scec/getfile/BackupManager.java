@@ -16,6 +16,7 @@ import org.apache.commons.io.FileUtils;
  */
 public class BackupManager {
 	private final String identifier;
+	private final Object lock = new Object();
 	private static final Set<String> identifiers = new HashSet<>();
 	private MetadataHandler meta;
 	
@@ -56,14 +57,16 @@ public class BackupManager {
 	 * Rollbacks do nothing if no backup exists. Backups persist across GetFile instances.
 	 */
 	public void backup() {
-		meta.writeClientMetaState();
-		backupFile(meta.getClientMetaFile());
-        for (String file : meta.getClientFiles()) {
-        	Path path = Paths.get(
-        			meta.getClientMetaFile().getParent(),
-        			meta.getClientMeta(file, "path"));
-			backupFile(path.toFile());
-        }
+		synchronized(lock) {
+			meta.writeClientMetaState();
+			backupFile(meta.getClientMetaFile());
+			for (String file : meta.getClientFiles()) {
+				Path path = Paths.get(
+						meta.getClientMetaFile().getParent(),
+						meta.getClientMeta(file, "path"));
+				backupFile(path.toFile());
+			}
+		}
 	}
 	
 	/**
@@ -83,75 +86,78 @@ public class BackupManager {
 	 * @return 0 if success and 1 if unable to rollback.
 	 */
 	public int rollback() {
-		if (!backupExists()) {
-			SimpleLogger.LOG(System.err, "No backup snapshot found for rollback");
-			return 1;
-		}
-        File clientMetaFile = meta.getClientMetaFile();
-		int status = 0;
-		// Delete files found in current meta that don't have a backup
-        for (String file : meta.getClientFiles()) {
-        	Path path = Paths.get(
-        			clientMetaFile.getParent(),
-        			meta.getClientMeta(file, "path"));
-			File savLoc = path.toFile();
-			File bakLoc = new File(path.toString().concat(identifier));
-			if (savLoc.exists() && !bakLoc.exists()) {
-				savLoc.delete();
+		synchronized(lock) {
+			if (!backupExists()) {
+				SimpleLogger.LOG(System.err, "No backup snapshot found for rollback");
+				return 1;
 			}
-        }
-        // Rollback the local meta itself
-        File clientMetaBak = new File(clientMetaFile.getPath().concat(identifier));
-        if (clientMetaFile.exists() && clientMetaBak.exists()) {
-        	try {
-        		clientMetaFile.delete();
-				FileUtils.moveFile(clientMetaBak, clientMetaFile);
-				SimpleLogger.LOG(System.out, "rolled back local meta");
-        	} catch (IOException e) {
-				SimpleLogger.LOG(System.err, "Failed to read local meta files");
-				e.printStackTrace();
-				status = 1;
-        	}
-        } else {
-				SimpleLogger.LOG(System.err, "Failed to rollback local meta");
-				status = 1;
-        }
-        // Load the client meta into memory
-        meta.loadClientMeta();
-		// Iterate over the local files to potentially rollback.
-        for (String file : meta.getClientFiles()) {
-        	Path path = Paths.get(
-        			clientMetaFile.getParent(),
-        			meta.getClientMeta(file, "path"));
-        	try {
+			File clientMetaFile = meta.getClientMetaFile();
+			int status = 0;
+			// Delete files found in current meta that don't have a backup
+			for (String file : meta.getClientFiles()) {
+				Path path = Paths.get(
+						clientMetaFile.getParent(),
+						meta.getClientMeta(file, "path"));
 				File savLoc = path.toFile();
 				File bakLoc = new File(path.toString().concat(identifier));
-				if (!savLoc.exists() && !bakLoc.exists()) {
-					SimpleLogger.LOG(System.err,
-							"Tracked file is missing. Skipping " + file);
-					status = 1;
-					continue;
+				if (savLoc.exists() && !bakLoc.exists()) {
+					SimpleLogger.LOG(System.out, "Deleting " + savLoc);
+					savLoc.delete();
 				}
-				if (bakLoc.exists()) {
-					// Rollback files that have a backup
-					if (savLoc.exists()) {
-						FileUtils.delete(savLoc);
-					}
-					FileUtils.moveFile(bakLoc, savLoc);
-					SimpleLogger.LOG(System.out, "rolled back " + file);
-				} else if (savLoc.exists()) {
-					// Delete tracked files that don't have a backup
-					FileUtils.delete(savLoc);
-					SimpleLogger.LOG(System.out, "deleted " + file);
-				}
-			} catch (IOException e) {
-						SimpleLogger.LOG(System.err, "Failed to rollback " + file);
-				status = 1;
-				e.printStackTrace();
 			}
-        }
-        DeleteFile.deleteEmptyDirs(Paths.get(clientMetaFile.getParent()));
-        return status;
+			// Rollback the local meta itself
+			File clientMetaBak = new File(clientMetaFile.getPath().concat(identifier));
+			if (clientMetaFile.exists() && clientMetaBak.exists()) {
+				try {
+					clientMetaFile.delete();
+					FileUtils.moveFile(clientMetaBak, clientMetaFile);
+					SimpleLogger.LOG(System.out, "rolled back local meta");
+				} catch (IOException e) {
+					SimpleLogger.LOG(System.err, "Failed to read local meta files");
+					e.printStackTrace();
+					status = 1;
+				}
+			} else {
+					SimpleLogger.LOG(System.err, "Failed to rollback local meta");
+					status = 1;
+			}
+			// Load the client meta into memory
+			meta.loadClientMeta();
+			// Iterate over the local files to potentially rollback.
+			for (String file : meta.getClientFiles()) {
+				Path path = Paths.get(
+						clientMetaFile.getParent(),
+						meta.getClientMeta(file, "path"));
+				try {
+					File savLoc = path.toFile();
+					File bakLoc = new File(path.toString().concat(identifier));
+					if (!savLoc.exists() && !bakLoc.exists()) {
+						SimpleLogger.LOG(System.err,
+								"Tracked file is missing. Skipping " + file);
+						status = 1;
+						continue;
+					}
+					if (bakLoc.exists()) {
+						// Rollback files that have a backup
+						if (savLoc.exists()) {
+							FileUtils.delete(savLoc);
+						}
+						FileUtils.moveFile(bakLoc, savLoc);
+						SimpleLogger.LOG(System.out, "rolled back " + file);
+					} else if (savLoc.exists()) {
+						// Delete tracked files that don't have a backup
+						FileUtils.delete(savLoc);
+						SimpleLogger.LOG(System.out, "deleted " + file);
+					}
+				} catch (IOException e) {
+					SimpleLogger.LOG(System.err, "Failed to rollback " + file);
+					status = 1;
+					e.printStackTrace();
+				}
+			}
+			DeleteFile.deleteEmptyDirs(Paths.get(clientMetaFile.getParent()));
+			return status;
+		}
 	}
 	
 	/**
@@ -163,6 +169,7 @@ public class BackupManager {
 		if (file.exists()) {
 			try {
 				FileUtils.copyFile(file, bak);
+				SimpleLogger.LOG(System.out, "Backed up " + file.getName());
 			} catch (IOException e) {
 				SimpleLogger.LOG(System.err, "Refused to backup " + file.getName());
 				e.printStackTrace();
