@@ -8,7 +8,6 @@ import java.net.URI;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 
-import javax.swing.SwingUtilities;
 import javax.swing.SwingWorker;
 
 import java.lang.Math;
@@ -152,15 +151,11 @@ class ProgressTracker {
 			}
 			if (partial.exists()) {
 				// Show the progress bar and start the worker
-				SwingUtilities.invokeLater(() -> {
-					progress.setVisible(true);
-					worker.execute();
-				});
+				progress.setVisible(true);
+				worker.execute();
 			} else {
-				SwingUtilities.invokeLater(() -> {
-					progress.setVisible(false);
-					progress.dispose();
-				});
+				progress.setVisible(false);
+				progress.dispose();
 				SimpleLogger.LOG(System.err, "Download either finished or hasn't started within timeout. Not showing progress bar.");
 			}
 		});
