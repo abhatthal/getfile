@@ -16,7 +16,7 @@ import org.apache.commons.io.FileUtils;
  */
 public class BackupManager {
 	private final String identifier;
-	private final Object lock = new Object();
+	private final Object lock;
 	private static final Set<String> identifiers = new HashSet<>();
 	private MetadataHandler meta;
 	
@@ -43,6 +43,7 @@ public class BackupManager {
 		}
 		this.identifier = ".bak".concat(identifier);
 		this.meta = meta;
+		this.lock = new Object();
 	}
 	/**
 	 * The constructor without an identifier passed assumes an empty string.

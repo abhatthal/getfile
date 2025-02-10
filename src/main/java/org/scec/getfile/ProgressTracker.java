@@ -6,6 +6,7 @@ import java.net.HttpURLConnection;
 import java.net.MalformedURLException;
 import java.net.URI;
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
 
 import javax.swing.SwingUtilities;
 import javax.swing.SwingWorker;
@@ -87,74 +88,81 @@ class ProgressTracker {
 	 * @param progress		Progress bar to update
 	 */
 	void updateProgress(String fileKey, CalcProgressBar progress) {
-		final long fileSizeBytes = getFileSize(fileKey);
-		if (fileSizeBytes <= 0) {
-			return;
-		}
+		CompletableFuture.runAsync(() -> {
+			final long fileSizeBytes = getFileSize(fileKey);
+			if (fileSizeBytes <= 0) {
+				return;
+			}
 
-		File file = new File(
-			meta.getClientMetaFile().getParent(),
-			meta.getClientMeta(fileKey, "path"));
-		File partial = new File(file.toString().concat(".part"));
+			File file = new File(
+				meta.getClientMetaFile().getParent(),
+				meta.getClientMeta(fileKey, "path"));
+			File partial = new File(file.toString().concat(".part"));
 
-		// Define SwingWorker for background processing
-		SwingWorker<Void, Long> worker = new SwingWorker<>() {
-			@Override
-			protected Void doInBackground() throws Exception {
-				// Show progress until the download completes
-				while (partial.exists()) {
-					publish(partial.length());
-					Thread.sleep(200); // Non-EDT sleep
+			// Define SwingWorker for background processing
+			SwingWorker<Void, Long> worker = new SwingWorker<>() {
+				@Override
+				protected Void doInBackground() throws Exception {
+					// Show progress until the download completes
+					while (partial.exists()) {
+						publish(partial.length());
+						Thread.sleep(200); // Non-EDT sleep
+					}
+					return null;
 				}
-				return null;
-			}
 
-			@Override
-			protected void process(List<Long> chunks) {
-				// Update progress bar on the EDT
-				long totalBytesDownloaded = chunks.get(chunks.size() - 1);
-				Pair<Long, Long> chunkedProgress =
-						ProgressTracker.this.chunkProgress(
-								totalBytesDownloaded, fileSizeBytes);
-				final int FILE_KEY_LEN = 24;
-				// Update the progress bar using the chunked progress
-				progress.updateProgress(
-					chunkedProgress.getLeft(), chunkedProgress.getRight(),
-					((fileKey.length() <= FILE_KEY_LEN)
-						? fileKey
-						: fileKey.substring(0, FILE_KEY_LEN))
-						+ ": "
-						+ (int) Math.round(totalBytesDownloaded / 1e6) + " of "
-						+ (int) Math.round(fileSizeBytes / 1e6) + " MB downloaded"
-				);
-			}
+				@Override
+				protected void process(List<Long> chunks) {
+					// Update progress bar on the EDT
+					long totalBytesDownloaded = chunks.get(chunks.size() - 1);
+					Pair<Long, Long> chunkedProgress =
+							ProgressTracker.this.chunkProgress(
+									totalBytesDownloaded, fileSizeBytes);
+					final int FILE_KEY_LEN = 24;
+					// Update the progress bar using the chunked progress
+					progress.updateProgress(
+						chunkedProgress.getLeft(), chunkedProgress.getRight(),
+						((fileKey.length() <= FILE_KEY_LEN)
+							? fileKey
+							: fileKey.substring(0, FILE_KEY_LEN))
+							+ ": "
+							+ (int) Math.round(totalBytesDownloaded / 1e6) + " of "
+							+ (int) Math.round(fileSizeBytes / 1e6) + " MB downloaded"
+					);
+				}
 
-			@Override
-			protected void done() {
-				// Hide and dispose progress bar when done
-				progress.setVisible(false);
-				progress.dispose();
-			}
-		};
+				@Override
+				protected void done() {
+					// Hide and dispose progress bar when done
+					progress.setVisible(false);
+					progress.dispose();
+				}
+			};
 
-		// Wait until partial file exists
-		for (int i = 0; i < 10; i++) {
+			// Wait until partial file exists
+			for (int i = 0; i < 4; i++) {
+				if (partial.exists()) {
+					break;
+				}
+				try {
+					Thread.sleep(1000);
+				} catch (InterruptedException e) {
+					e.printStackTrace();
+				}
+			}
 			if (partial.exists()) {
-				break;
+				// Show the progress bar and start the worker
+				SwingUtilities.invokeLater(() -> {
+					progress.setVisible(true);
+					worker.execute();
+				});
+			} else {
+				SwingUtilities.invokeLater(() -> {
+					progress.setVisible(false);
+					progress.dispose();
+				});
+				SimpleLogger.LOG(System.err, "Download either finished or hasn't started within timeout. Not showing progress bar.");
 			}
-			try {
-				Thread.sleep(1000);
-			} catch (InterruptedException e) {
-				e.printStackTrace();
-			}
-		}
-		if (partial.exists()) {
-			// Show the progress bar and start the worker
-			SwingUtilities.invokeLater(() -> progress.setVisible(true));
-			worker.execute();
-		} else {
-			SwingUtilities.invokeLater(() -> progress.setVisible(false));
-			SimpleLogger.LOG(System.err, "Download either finished or hasn't started within timeout. Not showing progress bar.");
-		}
+		});
 	}
 }
