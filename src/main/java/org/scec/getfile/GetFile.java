@@ -27,7 +27,6 @@ public class GetFile {
 	 */
 	public static final String LATEST_JAR_URL =
 			"https://raw.githubusercontent.com/abhatthal/getfile/refs/heads/main/libs/libs.json";
-	final String name;
 	// GetFile client metadata is stored in MetadataHandler to pass data into utility classes.
 	final MetadataHandler meta;
 	// Each GetFile instance can have multiple concurrent backups. 1-many relationship via Map.
@@ -60,12 +59,11 @@ public class GetFile {
 				e.printStackTrace();
 			}
 		}
-		this.name = name;
 		this.meta = MetadataHandler.MetadataHandlerFactory(
 				clientMetaFile, serverMetaURI);
 		this.prompter = new Prompter(meta);
 		this.showProgress = showProgress;
-		this.tracker = new ProgressTracker(meta);
+		this.tracker = new ProgressTracker(meta, name);
 		this.backups = new HashMap<String, BackupManager>();
 		Runtime.getRuntime().addShutdownHook(new Thread(() -> {
 			meta.writeClientMetaState();
@@ -138,12 +136,7 @@ public class GetFile {
 					}
 				});
 				if (showProgress) {
-				tracker.updateProgress(fileKey,
-					new CalcProgressBar(
-						/*owner=*/null,
-						/*title=*/"Downloading " + name + " Files",
-						/*info=*/"downloading " + fileKey,
-						/*visible=*/false));
+					tracker.updateProgress(fileKey);
 				}
 				downloader.join();
 			}

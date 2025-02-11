@@ -8,6 +8,7 @@ import java.net.URI;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 
+import javax.swing.SwingUtilities;
 import javax.swing.SwingWorker;
 
 import java.lang.Math;
@@ -20,13 +21,17 @@ import org.apache.commons.lang3.tuple.ImmutablePair;
  */
 class ProgressTracker {
 	private MetadataHandler meta;
+	private String appName;
 
 	/**
 	 * ProgressTracker Constructor
 	 * @param meta
+	 * @param appName
+	 * @param threadExecutor
 	 */
-	ProgressTracker(MetadataHandler meta) {
+	ProgressTracker(MetadataHandler meta, String appName) {
 		this.meta = meta;
+		this.appName = appName;
 	}
 
 	/**
@@ -86,10 +91,16 @@ class ProgressTracker {
 	 * @param fileKey		Name of file key in metadata
 	 * @param progress		Progress bar to update
 	 */
-	void updateProgress(String fileKey, CalcProgressBar progress) {
-		CompletableFuture.runAsync(() -> {
+	void updateProgress(String fileKey) {
+		SwingUtilities.invokeLater(() -> {
+			CalcProgressBar progress = new CalcProgressBar(
+				/*owner=*/null,
+				/*title=*/"Downloading " + appName + " Files",
+				/*info=*/"downloading " + fileKey,
+				/*visible=*/false);
 			final long fileSizeBytes = getFileSize(fileKey);
 			if (fileSizeBytes <= 0) {
+				progress.dispose();
 				return;
 			}
 
@@ -132,31 +143,33 @@ class ProgressTracker {
 
 				@Override
 				protected void done() {
-					// Hide and dispose progress bar when done
-					progress.setVisible(false);
-					progress.dispose();
+					progress.showProgress(false);
 				}
 			};
-
-			// Wait until partial file exists
-			for (int i = 0; i < 4; i++) {
-				if (partial.exists()) {
-					break;
-				}
+			
+			// Check for the .part file in a background thread (not on the EDT)
+			CompletableFuture.runAsync(() -> {
 				try {
-					Thread.sleep(1000);
+					for (int i = 0; i < 4; i++) {
+						if (partial.exists()) break;
+						Thread.sleep(1000);
+					}
+					if (partial.exists()) {
+						SwingUtilities.invokeLater(() -> {
+							progress.showProgress(true);
+							worker.execute();
+						});
+					} else {
+						SwingUtilities.invokeLater(() -> {
+							progress.showProgress(false);
+						});
+					}
 				} catch (InterruptedException e) {
-					e.printStackTrace();
+					Thread.currentThread().interrupt();
 				}
-			}
-			if (partial.exists()) {
-				// Show the progress bar and start the worker
-				progress.setVisible(true);
-				worker.execute();
-			} else {
-				progress.setVisible(false);
-				progress.dispose();
-				SimpleLogger.LOG(System.err, "Download either finished or hasn't started within timeout. Not showing progress bar.");
+			});
+			if (progress.isDisplayable()) {
+			    progress.dispose();
 			}
 		});
 	}
