@@ -53,11 +53,14 @@ The future for the map evaluates once all the files have been updated.
 The corresponding File objects are mutable and can be used to find the paths to
 the files on the client system.
 
+You must wait for the CompletableFuture to resolve with a `join` or `get`
+invocation before ending the application to ensure all updates complete.
+
 Example invocation to update all files and then read one of them:
 ```
 gf.updateAll().thenAccept(updatedFiles -> {
 	File file1 = updatedFiles.get("file1");
-});
+}).join();
 ```
 
 ## public CompletableFuture<File> updateFile(String fileKey)
@@ -70,11 +73,14 @@ characters not typically permissible for a file name.
 
 updateFile returns a future to the File where the updated file will be.
 
+You must wait for the CompletableFuture to resolve with a `join` or `get`
+invocation before ending the application to ensure the update completes.
+
 Example invocation to get one file:
 ```
 gf.updateFile("data").thenAccept(data -> {
 	System.out.println("Downloaded " + data.getName());
-});
+}).join();
 ```
 
 ## public BackupManager getBackupManager(String identifier)
