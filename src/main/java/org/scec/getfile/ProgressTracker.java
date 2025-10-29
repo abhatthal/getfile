@@ -27,7 +27,6 @@ class ProgressTracker {
 	 * ProgressTracker Constructor
 	 * @param meta
 	 * @param appName
-	 * @param threadExecutor
 	 */
 	ProgressTracker(MetadataHandler meta, String appName) {
 		this.meta = meta;
@@ -89,7 +88,6 @@ class ProgressTracker {
 	 * Monitoring thread will run this to track the status of a file update
 	 * and update the CalcProgressBar to show user the status.
 	 * @param fileKey		Name of file key in metadata
-	 * @param progress		Progress bar to update
 	 */
 	void updateProgress(String fileKey) {
 		SwingUtilities.invokeLater(() -> {
