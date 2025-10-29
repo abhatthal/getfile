@@ -8,6 +8,7 @@ import java.net.URISyntaxException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.Paths;
 
 import org.apache.commons.codec.digest.DigestUtils;
 import org.apache.commons.io.FileUtils;
@@ -62,6 +63,8 @@ class Downloader {
 				dwnLoc.delete();
 			}
 			SimpleLogger.LOG(System.err, "MD5 validation failed for " + uri);
+            SimpleLogger.LOG(System.err, "Expected " + getExpectedMd5(uri));
+            SimpleLogger.LOG(System.err, "Calculated: " + calculatedMd5);
 			return 1;
 		} catch (IOException e) {
 			SimpleLogger.LOG(System.err, "Failed to download " + uri);
@@ -83,7 +86,7 @@ class Downloader {
 		try {
 			uri = new URI(uri.toString().concat(".md5"));
 			InputStream inputStream = uri.toURL().openStream();
-			return IOUtils.toString(inputStream, StandardCharsets.UTF_8);
+			return IOUtils.toString(inputStream, StandardCharsets.UTF_8).trim();
 		} catch (URISyntaxException | IOException e) {
 			SimpleLogger.LOG(
 					System.err, "Could not find precomputed md5sum for " + uri);
@@ -91,4 +94,20 @@ class Downloader {
 			return "";
 		}
 	}
+
+    /**
+     * CLT for directly downloading a file with MD5 validation.
+     * Usage: downloader <uri> <save location>
+     *
+     * @param args
+     */
+    public static void main(String[] args) {
+        String uri = args[0].trim();
+        String saveLoc = args[1].trim();
+        if (Downloader.downloadFile(URI.create(uri), Paths.get(saveLoc)) == 0) {
+            System.out.println("Downloaded " + uri + "to " + saveLoc);
+        } else {
+            System.err.println("Failed to download " + uri + " to " + saveLoc);
+        }
+    }
 }

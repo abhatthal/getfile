@@ -14,7 +14,7 @@ ext {
 
 java {
 	toolchain {
-		languageVersion = JavaLanguageVersion.of(21) // Use JDK 21 for builds
+		languageVersion = JavaLanguageVersion.of(11) // Use JDK 11 for builds
 	}
 	sourceCompatibility = JavaVersion.VERSION_11 // Source code uses Java 11 syntax
 	targetCompatibility = JavaVersion.VERSION_11 // Compiled bytecode targets Java 11 JVMs
@@ -29,11 +29,12 @@ repositories {
 
 dependencies {
 	// Use JUnit Jupiter for testing.
-	testImplementation libs.junit.jupiter
+    testImplementation 'org.junit.jupiter:junit-jupiter:5.10.0'
+    testImplementation 'org.junit.jupiter:junit-jupiter-params:5.10.0'
 	// https://mvnrepository.com/artifact/com.github.tomakehurst/wiremock
 	testImplementation 'com.github.tomakehurst:wiremock:3.0.1'
 
-	testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+	//testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
 
 	api 'com.google.code.gson:gson:2.8.9'
 
@@ -50,6 +51,9 @@ dependencies {
 tasks.named('test') {
 	// Use JUnit Platform for unit tests.
 	useJUnitPlatform()
+	// Run tests sequentially to avoid WireMock port conflicts
+    maxParallelForks = 1
+    forkEvery = 1
 }
 
 tasks.javadoc {
