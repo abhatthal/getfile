@@ -36,6 +36,7 @@ the application directly.
 * [server_config](docs/server_config.md) - How to structure server data for GetFile with examples
 * [server_operations](docs/server_operations.md) - File server CRUD
 * [testing](docs/testing.md) - Get started with unit tests in Gradle
+* [user_interface](docs/user_interface.md) - How users can modify metadata (and probably shouldn't)
  
 ## Future Plans
 * Add the ability to skip versions
