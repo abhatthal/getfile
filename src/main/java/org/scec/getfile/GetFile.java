@@ -6,9 +6,11 @@ import java.io.IOException;
 import java.net.URI;
 
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 
+import java.util.List;
 import java.util.Map;
 import java.util.HashMap;
 import java.util.concurrent.CompletableFuture;
@@ -47,28 +49,74 @@ public class GetFile {
 	 */
 	public GetFile(String name, File clientMetaFile, URI serverMetaURI,
 			boolean showProgress) {
-		clientMetaFile = clientMetaFile.getAbsoluteFile();
-		// Create an empty client meta file if it doesn't already exist.
-		if (!clientMetaFile.exists()) {
-			try {
-				FileUtils.writeStringToFile(
-						clientMetaFile, "{}", StandardCharsets.UTF_8);
-			} catch (IOException e) {
-				SimpleLogger.LOG(System.err,
-						"Failed to create client meta file " + clientMetaFile);
-				e.printStackTrace();
-			}
-		}
-		this.meta = MetadataHandler.MetadataHandlerFactory(
-				clientMetaFile, serverMetaURI);
-		this.prompter = new Prompter(meta);
-		this.showProgress = showProgress;
-		this.tracker = new ProgressTracker(meta, name);
-		this.backups = new HashMap<String, BackupManager>();
-		Runtime.getRuntime().addShutdownHook(new Thread(() -> {
-			meta.writeClientMetaState();
-		}));
+	    this(name, clientMetaFile, List.of(serverMetaURI), showProgress);
 	}
+
+    /**
+     * Constructor establishes connection with a server and parses local and
+     * server file metadata into memory.
+     * <p>
+     * The first URI to successfully provide a connection to a GetFile metadata file
+     * is used for file retrieval for the given GetFile instance.
+     * </p>
+     * @param name				Name of GetFile instance
+     * @param clientMetaFile	Reference to local metadata file on client
+     * @param serverMetaURIs	List of links to hosted server metadata file to download
+     * @param showProgress		Show download progress in CalcProgressBar
+     */
+    public GetFile(String name, File clientMetaFile, List<URI> serverMetaURIs, boolean showProgress) {
+        if (serverMetaURIs == null || serverMetaURIs.isEmpty()) {
+            throw new IllegalArgumentException("serverMetaURIs list cannot be null or empty");
+        }
+
+        // Iterate over all serverMetaURIs and choose first server with successful connection.
+//        URI serverMetaURI = serverMetaURIs.get(0);
+        URI serverMetaURI = null;
+        for (URI uri : serverMetaURIs) {
+            // Get a location for metadata file download
+            Path tmpDir = Paths.get(System.getProperty("java.io.tmpdir"));
+            String path = uri.getPath();
+            String serverMetaFileName = path.substring(path.lastIndexOf('/') + 1);
+            Path dwnLoc = tmpDir.resolve(serverMetaFileName);
+            // We need to download the metadata file (i.e., can't just use HEAD)
+            // to validate the server connection and that the file is not corrupted.
+            if (Downloader.downloadFile(uri, dwnLoc) == 0) {
+                serverMetaURI = uri;
+                try {
+                    Files.deleteIfExists(dwnLoc);
+                } catch (IOException e) {
+                    throw new RuntimeException(e);
+                }
+                SimpleLogger.LOG(System.out, "Connection established with " + serverMetaURI);
+                break;
+            }
+            SimpleLogger.LOG(System.err, "Couldn't connect to " + uri + ".");
+        }
+        if (serverMetaURI == null) {
+            SimpleLogger.LOG(System.err, "Failed to connect to any server.");
+            throw new RuntimeException("Failed to connect to any server.");
+        }
+
+        clientMetaFile = clientMetaFile.getAbsoluteFile();
+        // Create an empty client meta file if it doesn't already exist.
+        if (!clientMetaFile.exists()) {
+            try {
+                FileUtils.writeStringToFile(
+                        clientMetaFile, "{}", StandardCharsets.UTF_8);
+            } catch (IOException e) {
+                SimpleLogger.LOG(System.err,
+                        "Failed to create client meta file " + clientMetaFile);
+                e.printStackTrace();
+            }
+        }
+        this.meta = MetadataHandler.MetadataHandlerFactory(
+                clientMetaFile, serverMetaURI);
+        this.prompter = new Prompter(meta);
+        this.showProgress = showProgress;
+        this.tracker = new ProgressTracker(meta, name);
+        this.backups = new HashMap<String, BackupManager>();
+        Runtime.getRuntime().addShutdownHook(new Thread(meta::writeClientMetaState));
+    }
 	
 	/**
 	 * Update all local files using new server files.
