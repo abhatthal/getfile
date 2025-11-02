@@ -1,5 +1,5 @@
 # GetFile Usage
-## public GetFile(String name, File clientMetaFile, URI serverMetaURI, boolean showProgress, boolean ignoreErrors);
+## public GetFile(String name, File clientMetaFile, URI serverMetaURI, boolean showProgress, boolean ignoreErrors)
 Construct a GetFile instance with the path to your local metadata configuration
 and the link to the hosted server metadata.
 ```
@@ -40,6 +40,26 @@ name, then they could overwrite each other when downloaded. Writing multiple
 instances to the same directory creates a race condition and should be avoided.
 
 The showProgress boolean allows you to disable the GUI download progress bar.
+
+## public GetFile(String name, File clientMetaFile, List<URI> serverMetaURIs, boolean showProgress)
+Construct a GetFile instance with a list of links to hosted server metadata.
+At construction iterate over the list of serverMetaURIs and use the first URI with the resource available for all subsequent downloads.
+```
+	GetFile gf = new GetFile(
+			/*name=*/"MyGetFileApp",
+			/*clientMetaFile=*/new File("getfile.json"),
+			/*serverMetaURIs=*/List.of(
+				URI.create("http://localhost:8088/meta.json"),
+				URI.create("http://localhost:8080/path/to/backup-meta.json")),
+			/*showProgress=*/false);
+```
+
+Note that this is only considered at construction, if the selected resource is made unavailable, it doesn't automatically consider another
+serverMetaURI for retrieval. It's better that a given GetFile instance is consistent with the same set of metadata over its lifetime.
+
+As such, the purpose of this constructor is to provide redundant access to the same server metadata and corresponding set of data over multiple
+servers. The paths to the metadata file and the data on each server may vary, but the keys in the metadata file should be the same for a consistent
+user interface.
 
 ## public CompletableFuture<Map<String, File>> updateAll()
 Iterate over all the files found in the serverMeta and invoke
