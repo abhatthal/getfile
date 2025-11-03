@@ -58,6 +58,8 @@ public class GetFile {
      * <p>
      * The first URI to successfully provide a connection to a GetFile metadata file
      * is used for file retrieval for the given GetFile instance.
+     * If no connection is made to any of the given server metadata URIs, the GetFile instance
+     * is still created but will only be used to retrieve files already cached.
      * </p>
      * @param name				Name of GetFile instance
      * @param clientMetaFile	Reference to local metadata file on client
@@ -65,20 +67,19 @@ public class GetFile {
      * @param showProgress		Show download progress in CalcProgressBar
      */
     public GetFile(String name, File clientMetaFile, List<URI> serverMetaURIs, boolean showProgress) {
-        if (serverMetaURIs == null || serverMetaURIs.isEmpty()) {
-            throw new IllegalArgumentException("serverMetaURIs list cannot be null or empty");
-        }
-
         // Iterate over all serverMetaURIs and choose first server with successful connection.
-//        URI serverMetaURI = serverMetaURIs.get(0);
         URI serverMetaURI = null;
+        if (serverMetaURIs == null || serverMetaURIs.isEmpty()) {
+            SimpleLogger.LOG(System.err, "No server metadata URIs provided.");
+            throw new IllegalArgumentException("No server metadata URIs provided.");
+        }
         for (URI uri : serverMetaURIs) {
             // Get a location for metadata file download
             Path tmpDir = Paths.get(System.getProperty("java.io.tmpdir"));
             String path = uri.getPath();
             String serverMetaFileName = path.substring(path.lastIndexOf('/') + 1);
             Path dwnLoc = tmpDir.resolve(serverMetaFileName);
-            // We need to download the metadata file (i.e., can't just use HEAD)
+            // We need to download the metadata file (i.e., can't just use HEAD request)
             // to validate the server connection and that the file is not corrupted.
             if (Downloader.downloadFile(uri, dwnLoc) == 0) {
                 serverMetaURI = uri;
@@ -93,8 +94,11 @@ public class GetFile {
             SimpleLogger.LOG(System.err, "Couldn't connect to " + uri + ".");
         }
         if (serverMetaURI == null) {
-            SimpleLogger.LOG(System.err, "Failed to connect to any server.");
-            throw new RuntimeException("Failed to connect to any server.");
+            SimpleLogger.LOG(System.err, "Failed to connect to any server. Cache retrieval only.");
+            // Try to use first server even though it's currently failing.
+            // If it works later, it will be used for updating.
+            // Otherwise, cached files can still be retrieved.
+            serverMetaURI = serverMetaURIs.get(0);
         }
 
         clientMetaFile = clientMetaFile.getAbsoluteFile();

@@ -39,41 +39,28 @@ public class GetFileConstructorTest extends BaseWireMockTest {
     @Test
     public void constructorValidatesServerURI() {
         // Test URI validation in constructor
-        assertThrows(RuntimeException.class, () -> {
+        assertThrows(NullPointerException.class, () -> {
             new GetFile(
-                "InvalidURITest",
-                clientMetaFile,
-                URI.create("invalid://uri"),
-                false
-            );
-        });
-        assertThrows(RuntimeException.class, () -> {
-            new GetFile(
-                    "InvalidURITest",
+                    "ConstructorTest",
                     clientMetaFile,
                     (URI)null,
                     false
             );
         });
-    }
-
-    @Test
-    public void constructorRequiresServerURI() {
-        List<URI> emptyURIs = List.of();
-        // Test that constructor throws an exception when server URI is null or empty
         assertThrows(IllegalArgumentException.class, () -> {
             new GetFile(
-                    "EmptyServerListTest",
+                    "ConstructorTest",
                     clientMetaFile,
-                    emptyURIs,
+                    (List<URI>)null,
                     false
             );
         });
+        List<URI> emptyList = List.of();
         assertThrows(IllegalArgumentException.class, () -> {
             new GetFile(
-                    "EmptyServerListTest",
+                    "ConstructorTest",
                     clientMetaFile,
-                    (List<URI>)null,
+                    emptyList,
                     false
             );
         });
